@@ -213,6 +213,9 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     if (!mode || !["anonymous", "named"].includes(mode)) {
       return res.status(400).json({ ok: false, error: "Gönderim modu seçin." });
     }
+    if (!req.body.consentGiven) {
+      return res.status(400).json({ ok: false, error: "Lütfen Yasal İzinleri onaylayın." });
+    }
 
     // Build the message (pick random template variant)
     const tpl = pickTemplate(tone);
@@ -308,9 +311,12 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
 
   const footer = `
     <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
-    <p style="margin:0;font-size:11px;color:#8A7A63;opacity:0.8;">
+    <p style="margin:0 0 8px;font-size:11px;color:#8A7A63;opacity:0.8;">
       Bu tür mektupların doğası gereği kişisel olduğunu hatırlatmak isteriz. Eğer bu mesajı bir hata sonucu aldığınızı düşünüyorsanız veya gelecekte sistemimiz üzerinden benzer e-postalar almak istemiyorsanız, lütfen platformumuzu ziyaret ederek iletişime geçin. 
       Güvenliğiniz ve gizliliğiniz için sistemimiz katı gönderim limitleriyle korunmaktadır.
+    </p>
+    <p style="margin:0;font-size:10px;color:#8A7A63;opacity:0.6;">
+      Yasal Bildirim: Gönderici, bu platformun Kullanım Koşulları'nı kabul etmiş ve bu e-postanın size gönderilmesi için açık rıza (KVKK) göstermiştir.
     </p>`;
 
   const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" border="0" style="display:block; border:none; outline:none; text-decoration:none;" alt="" />`;

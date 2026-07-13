@@ -146,6 +146,20 @@
 
     <p class="hint">Metni dilediğin gibi düzenleyebilirsin — bu senin mektubun.</p>
 
+    <!-- Legal Consents -->
+    <div class="consent-group">
+      <label class="consent-checkbox">
+        <input type="checkbox" id="consent-terms">
+        <span class="checkmark"></span>
+        <span class="consent-text"><a href="#" id="link-terms" class="legal-link">Kullanım Koşulları</a>'nı ve <a href="#" id="link-privacy" class="legal-link">Gizlilik Politikası</a>'nı okudum, kabul ediyorum.</span>
+      </label>
+      <label class="consent-checkbox">
+        <input type="checkbox" id="consent-kvkk">
+        <span class="checkmark"></span>
+        <span class="consent-text">Kişisel verilerimin işlenmesine ve belirttiğim alıcıya e-posta gönderilmesine <a href="#" id="link-kvkk" class="legal-link">açık rıza</a> gösteriyorum.</span>
+      </label>
+    </div>
+
     <button type="button" class="send-btn" id="send-btn" disabled>
       <span class="send-btn__text">Mektubu Gönder</span>
       <svg class="send-btn__arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -167,6 +181,17 @@
   </section>
 
 </main>
+
+<!-- Legal Modal -->
+<div class="legal-modal-overlay" id="legal-modal" hidden>
+  <div class="legal-modal-card">
+    <button type="button" class="legal-modal-close" id="legal-modal-close" aria-label="Kapat">&times;</button>
+    <h3 class="legal-modal-title" id="legal-modal-title">Başlık</h3>
+    <div class="legal-modal-content" id="legal-modal-content">
+      <!-- İçerik JS tarafından doldurulacak -->
+    </div>
+  </div>
+</div>
 
 <!-- Success Overlay -->
 <div class="success-overlay" id="success-overlay" hidden>

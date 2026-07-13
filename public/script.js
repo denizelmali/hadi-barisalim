@@ -123,7 +123,16 @@
     successTrackingCode: document.getElementById("success-tracking-code"),
     trackingCodeInput: document.getElementById("tracking-code-input"),
     trackingBtn: document.getElementById("tracking-btn"),
-    trackingResult: document.getElementById("tracking-result")
+    trackingResult: document.getElementById("tracking-result"),
+    consentTerms: document.getElementById("consent-terms"),
+    consentKvkk: document.getElementById("consent-kvkk"),
+    linkTerms: document.getElementById("link-terms"),
+    linkPrivacy: document.getElementById("link-privacy"),
+    linkKvkk: document.getElementById("link-kvkk"),
+    legalModal: document.getElementById("legal-modal"),
+    legalModalClose: document.getElementById("legal-modal-close"),
+    legalModalTitle: document.getElementById("legal-modal-title"),
+    legalModalContent: document.getElementById("legal-modal-content")
   };
 
   var selectedTone = null;
@@ -203,8 +212,9 @@
     var toneOk = !!selectedTone;
     var modeOk = !!selectedMode;
     var senderOk = selectedMode === "anonymous" || (els.senderName && els.senderName.value.trim().length > 0);
+    var consentOk = els.consentTerms.checked && els.consentKvkk.checked;
 
-    var ready = nameOk && validEmail && toneOk && modeOk && senderOk && !isSending;
+    var ready = nameOk && validEmail && toneOk && modeOk && senderOk && consentOk && !isSending;
     els.sendBtn.disabled = !ready;
 
     if (els.recipientEmail.value.trim().length > 0 && !validEmail) {
@@ -234,6 +244,8 @@
   els.recipientEmail.addEventListener("input", updateSendState);
   els.subject.addEventListener("input", updateSendState);
   els.body.addEventListener("input", updateSendState);
+  els.consentTerms.addEventListener("change", updateSendState);
+  els.consentKvkk.addEventListener("change", updateSendState);
 
   if (els.senderName) {
     els.senderName.addEventListener("input", updateSendState);
@@ -272,7 +284,8 @@
           mode: selectedMode,
           subject: els.subject.value,
           body: els.body.value,
-          spotifyLink: els.spotifyLink ? els.spotifyLink.value.trim() : ""
+          spotifyLink: els.spotifyLink ? els.spotifyLink.value.trim() : "",
+          consentGiven: els.consentTerms.checked && els.consentKvkk.checked
         })
       });
 
@@ -316,6 +329,8 @@
     if (els.spotifyLink) els.spotifyLink.value = "";
     els.subject.value = "";
     els.body.value = "";
+    els.consentTerms.checked = false;
+    els.consentKvkk.checked = false;
 
     selectedTone = null;
     els.toneCards.forEach(function (c) { c.classList.remove("active"); });
@@ -408,6 +423,46 @@
     els.trackingResult.className = "tracking-result " + type;
     els.trackingResult.hidden = false;
   }
+
+  /* ───────── Legal Modal Logic ───────── */
+  var legalTexts = {
+    terms: {
+      title: "Kullanım Koşulları",
+      content: "<h4>1. Hizmetin Amacı</h4><p>Hadi Barışalım, kullanıcıların birbirlerine önceden belirlenmiş şablonlar ile anonim veya isimli olarak e-posta göndermelerini sağlayan bir platformdur.</p><h4>2. Kullanım Sınırları</h4><p>Bu platform yasadışı, tehditkar, taciz edici veya başkalarının haklarını ihlal eden içeriklerin gönderilmesi için kullanılamaz. Sistem kötüye kullanımı engellemek için IP tabanlı günlük gönderim limiti (max 3) uygular.</p><h4>3. Sorumluluk Reddi</h4><p>Gönderilen e-postaların içeriğinden ve alıcı üzerindeki etkisinden tamamen gönderici sorumludur. Hadi Barışalım platformu, gönderilen mesajlar nedeniyle oluşabilecek anlaşmazlıklarda sorumluluk kabul etmez.</p>"
+    },
+    privacy: {
+      title: "Gizlilik Politikası",
+      content: "<h4>1. Toplanan Veriler</h4><p>Hizmeti sunabilmek için alıcının e-posta adresi, adı ve (varsa) sizin adınız toplanır. Ayrıca kötüye kullanımı önlemek amacıyla IP adresiniz sistem tarafından geçici olarak izlenir.</p><h4>2. Verilerin Kullanımı</h4><p>Toplanan e-posta adresleri ASLA pazarlama amacıyla kullanılmaz veya üçüncü şahıslara satılmaz. Mektup içeriği ve alıcı adresi sadece e-postanın iletilmesi amacıyla kullanılır.</p><h4>3. Takip Teknolojileri (Piksel)</h4><p>E-postanın okunup okunmadığını tespit etmek için gönderilen maile 1x1 boyutunda görünmez bir takip pikseli eklenir. Bu teknoloji, e-postayı açan cihazın IP adresi ve tarayıcı bilgilerini (User-Agent) anonim olarak analiz ederek okuma durumunu belirler.</p>"
+    },
+    kvkk: {
+      title: "KVKK Açık Rıza Metni",
+      content: "<h4>Kişisel Verilerin İşlenmesi</h4><p>Hadi Barışalım platformunu kullanarak, alıcıya ait e-posta adresini ve ad bilgisini sistemimize giriyorsunuz. Bu verilerin 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında, yalnızca e-postanın gönderilmesi ve (gerekirse) log kayıtlarının güvenlik amacıyla geçici süreliğine tutulması amacıyla işlenmesine açık rıza göstermektesiniz.</p><h4>Açık Rıza Beyanı</h4><p>Onay kutusunu işaretleyerek; girdiğiniz verilerin, e-postanın iletilmesi amacıyla yurt içi veya yurt dışındaki e-posta sunucuları (örn. Google SMTP) aracılığıyla aktarılmasına onay verdiğinizi beyan edersiniz.</p>"
+    }
+  };
+
+  function openLegalModal(type, e) {
+    e.preventDefault();
+    var data = legalTexts[type];
+    if (data) {
+      els.legalModalTitle.innerHTML = data.title;
+      els.legalModalContent.innerHTML = data.content;
+      els.legalModal.hidden = false;
+    }
+  }
+
+  els.linkTerms.addEventListener("click", function(e) { openLegalModal("terms", e); });
+  els.linkPrivacy.addEventListener("click", function(e) { openLegalModal("privacy", e); });
+  els.linkKvkk.addEventListener("click", function(e) { openLegalModal("kvkk", e); });
+
+  els.legalModalClose.addEventListener("click", function() {
+    els.legalModal.hidden = true;
+  });
+
+  els.legalModal.addEventListener("click", function(e) {
+    if (e.target === els.legalModal) {
+      els.legalModal.hidden = true;
+    }
+  });
 
   /* ───────── Init ───────── */
   updateToneAvailability();
