@@ -383,6 +383,12 @@ app.get("/api/health", (_req, res) => {
 });
 
 /* ───────── Start ───────── */
-app.listen(PORT, () => {
-  console.log(`\n🕊  Hadi Barışalım sunucusu çalışıyor → http://localhost:${PORT}\n`);
-});
+/* ───────── Start ───────── */
+if (process.env.NODE_ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`\n🕊  Hadi Barışalım sunucusu çalışıyor → http://localhost:${PORT}\n`);
+  });
+}
+
+// Vercel Serverless Functions için app'i dışa aktarıyoruz
+module.exports = app;
