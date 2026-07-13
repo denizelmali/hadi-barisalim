@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hadi Barışalım — bir mektupla ilk adımı at</title>
+<meta name="description" content="Alıcının adını yaz, tonunu seç — mektubunu anonim veya isimli olarak otomatik gönder.">
+<meta property="og:title" content="Hadi Barışalım — bir mektupla ilk adımı at">
+<meta property="og:description" content="Barışma mektubunu otomatik gönder. Anonim veya isimli — seçim senin.">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="tr_TR">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,420;0,9..144,560;1,9..144,480;1,9..144,560&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Toast Notification -->
+<div class="toast" id="toast" aria-live="assertive">
+  <div class="toast__icon" id="toast-icon"></div>
+  <div class="toast__text" id="toast-text"></div>
+</div>
+
+<header class="hero">
+  <div class="hero__inner">
+    <p class="eyebrow">kırılan bir şeyi onarmak için</p>
+    <h1 class="hero__title">
+      Hadi <em>Barış</em><span class="seam-word">alım</span>
+    </h1>
+    <svg class="seam seam--hero" viewBox="0 0 640 28" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,14 L54,9 L92,19 L131,6 L172,17 L214,8 L252,15 L296,4 L338,18 L379,10 L420,16 L462,7 L505,14 L546,9 L588,17 L640,11" />
+    </svg>
+    <p class="hero__subtitle">Alıcının adını yaz, tonunu seç, mektubunu gözden geçir — gönder butonuna bas, mektup otomatik olarak anonim veya isimli şekilde gider.</p>
+  </div>
+</header>
+
+<main class="sheet">
+
+  <section class="step" id="step-1" aria-labelledby="step-1-title">
+    <div class="step__head">
+      <span class="step__no">1</span>
+      <h2 id="step-1-title">Kime yazıyorsun?</h2>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="recipient-name">Alıcının adı</label>
+        <input type="text" id="recipient-name" placeholder="Örn. Ayşe" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="recipient-email">Alıcının e-posta adresi</label>
+        <input type="email" id="recipient-email" placeholder="ornek@mail.com" autocomplete="off">
+      </div>
+    </div>
+  </section>
+
+  <svg class="seam seam--divider" viewBox="0 0 640 20" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,10 L48,15 L90,5 L136,13 L180,7 L224,16 L268,4 L314,12 L358,6 L404,15 L448,8 L494,14 L538,5 L584,13 L640,9" />
+  </svg>
+
+  <!-- Step 2: Mode Selection -->
+  <section class="step" id="step-mode" aria-labelledby="step-mode-title">
+    <div class="step__head">
+      <span class="step__no">2</span>
+      <h2 id="step-mode-title">Nasıl göndermek istiyorsun?</h2>
+    </div>
+
+    <div class="mode-switcher" role="radiogroup" aria-label="Gönderim modu">
+      <button type="button" class="mode-card active" data-mode="anonymous" role="radio" aria-checked="true" id="mode-anonymous">
+        <span class="mode-card__icon">🔒</span>
+        <span class="mode-card__title">Gizli Gönder</span>
+        <span class="mode-card__desc">Gönderen adı "Hadi Barışalım" olarak görünür. Kimliğin gizli kalır.</span>
+      </button>
+      <button type="button" class="mode-card" data-mode="named" role="radio" aria-checked="false" id="mode-named">
+        <span class="mode-card__icon">👤</span>
+        <span class="mode-card__title">İsimle Gönder</span>
+        <span class="mode-card__desc">Gönderen adın olarak senin adın görünür. Mail adresi site hesabından gider.</span>
+      </button>
+    </div>
+
+    <!-- Sender name (only for named mode) -->
+    <div class="field field--sender" id="sender-field" hidden>
+      <label for="sender-name">Senin adın <span class="field__hint">(mektubun altına imza olarak eklenir)</span></label>
+      <input type="text" id="sender-name" placeholder="Adın" autocomplete="off">
+    </div>
+  </section>
+
+  <svg class="seam seam--divider" viewBox="0 0 640 20" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,12 L46,6 L88,17 L130,9 L176,15 L220,5 L266,14 L310,7 L356,16 L400,8 L446,13 L490,6 L536,15 L580,9 L640,12" />
+  </svg>
+
+  <section class="step" id="step-2" aria-labelledby="step-2-title">
+    <div class="step__head">
+      <span class="step__no">3</span>
+      <h2 id="step-2-title">Ne demek istiyorsun?</h2>
+    </div>
+    <p class="step__note">Önce alıcının adını yaz, sonra sana en yakın tonu seç.</p>
+
+    <div class="tone-grid" role="group" aria-label="Mesaj tonu">
+      <button type="button" class="tone-card" data-tone="duygusal" disabled>
+        <span class="tone-card__mark" aria-hidden="true">♡</span>
+        <span class="tone-card__title">Duygusal</span>
+        <span class="tone-card__desc">Kalbini olduğu gibi anlat; özlemini ve sevgini paylaş.</span>
+      </button>
+      <button type="button" class="tone-card" data-tone="sitemkar" disabled>
+        <span class="tone-card__mark" aria-hidden="true">❦</span>
+        <span class="tone-card__title">Sitemkar</span>
+        <span class="tone-card__desc">İçindeki kırgınlığı nazikçe dile getir; kapıyı kapatma.</span>
+      </button>
+      <button type="button" class="tone-card" data-tone="uzlasmaci" disabled>
+        <span class="tone-card__mark" aria-hidden="true">◇</span>
+        <span class="tone-card__title">Uzlaşmacı</span>
+        <span class="tone-card__desc">Sorumluluk al, bir adım öne çık, konuşmaya davet et.</span>
+      </button>
+    </div>
+
+    <div class="field field--spotify">
+      <label for="spotify-link">Spotify Şarkı Linki <span class="field__hint">(Opsiyonel, mektuba eklenir)</span></label>
+      <input type="url" id="spotify-link" placeholder="Örn. https://open.spotify.com/track/..." autocomplete="off">
+    </div>
+  </section>
+
+  <svg class="seam seam--divider" viewBox="0 0 640 20" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,12 L46,6 L88,17 L130,9 L176,15 L220,5 L266,14 L310,7 L356,16 L400,8 L446,13 L490,6 L536,15 L580,9 L640,12" />
+  </svg>
+
+  <section class="step" id="step-3" aria-labelledby="step-3-title">
+    <div class="step__head">
+      <span class="step__no">4</span>
+      <h2 id="step-3-title">Mektubunu gözden geçir</h2>
+    </div>
+
+    <div class="paper" id="paper" aria-live="polite">
+      <div class="paper__empty" id="paper-empty">
+        Adını, alıcının adını ve bir ton seçtiğinde mektubun burada belirecek.
+      </div>
+      <div class="paper__content" id="paper-content" hidden>
+        <label class="paper__label" for="preview-subject">Konu</label>
+        <input type="text" id="preview-subject" class="paper__subject">
+        <div class="paper__rule" aria-hidden="true"></div>
+        <label class="paper__label" for="preview-body">Mesaj</label>
+        <textarea id="preview-body" class="paper__body" rows="12"></textarea>
+      </div>
+    </div>
+
+    <p class="hint">Metni dilediğin gibi düzenleyebilirsin — bu senin mektubun.</p>
+
+    <button type="button" class="send-btn" id="send-btn" disabled>
+      <span class="send-btn__text">Mektubu Gönder</span>
+      <svg class="send-btn__arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2L11 13"></path>
+        <path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+      </svg>
+      <div class="send-btn__spinner" hidden>
+        <div class="spinner"></div>
+      </div>
+    </button>
+    <p class="privacy-note" id="validation-note" aria-live="polite"></p>
+
+    <div class="privacy-badges">
+      <span class="badge">🔒 Anonim gönderim</span>
+      <span class="badge">📭 Log tutulmaz</span>
+      <span class="badge">🛡️ Günde max 3 mail</span>
+    </div>
+    <p class="privacy-note">Mektubun sunucumuz üzerinden otomatik gönderilir. Kişisel verilerin saklanmaz.</p>
+  </section>
+
+</main>
+
+<!-- Success Overlay -->
+<div class="success-overlay" id="success-overlay" hidden>
+  <div class="success-card">
+    <div class="success-card__icon">💌</div>
+    <h3 class="success-card__title">Mektubun Gönderildi!</h3>
+    <p class="success-card__desc">Barışma mektubun alıcıya başarıyla ulaştırıldı. Umarız güzel şeyler başlar.</p>
+    <div class="success-card__tracking">
+      <span class="tracking-label">Takip Kodun:</span>
+      <strong class="tracking-code" id="success-tracking-code">HB-XXXX</strong>
+      <p class="tracking-hint">Bu kodu sakla, sayfanın altındaki bölümden mektubunun okunup okunmadığını takip edebilirsin.</p>
+    </div>
+    <button type="button" class="success-card__btn" id="success-close">Yeni Mektup Yaz</button>
+  </div>
+</div>
+
+<section class="tracking-section" aria-labelledby="tracking-title">
+  <div class="tracking-section__inner">
+    <h2 id="tracking-title" class="tracking-title">Mektubunu Takip Et</h2>
+    <p class="tracking-desc">Sana verilen 6 haneli kodu girerek mektubunun okunup okunmadığını görebilirsin.</p>
+    <div class="tracking-form">
+      <input type="text" id="tracking-code-input" class="tracking-input" placeholder="Örn. HB-1A2B" autocomplete="off" maxlength="7">
+      <button type="button" id="tracking-btn" class="tracking-btn">Sorgula</button>
+    </div>
+    <div id="tracking-result" class="tracking-result" hidden></div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Hadi Barışalım — bazen ilk adımı atmak, en zor ama en değerli olandır.</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
