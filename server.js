@@ -252,9 +252,15 @@ app.post("/api/send", sendLimiter, async (req, res) => {
       await transporter.sendMail({
         from: `"${fromName}" <${fromEmail}>`,
         to: recipientEmail,
+        replyTo: mode === "named" && senderName ? undefined : `"No Reply" <noreply@hadibarisalim.com>`,
         subject: subject,
         text: body, // plain text doesn't have spotify button or pixel
         html: htmlBody,
+        messageId: `<${trackingId}@hadibarisalim.com>`,
+        headers: {
+          "X-Entity-Ref-ID": trackingId,
+          "List-Unsubscribe": `<${serverUrl}/api/unsubscribe>`
+        }
       });
     } catch (mailErr) {
       // Mail gitmezse veritabanındaki kaydı silelim ki tutarsızlık olmasın
@@ -296,11 +302,18 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
        </div>`
     : "";
 
-  const footer = isAnonymous
-    ? `<p style="margin:24px 0 0;font-size:13px;color:#8A7A63;font-style:italic;">Bu mektup, hadibarisalim.com üzerinden anonim olarak gönderilmiştir.</p>`
-    : `<p style="margin:24px 0 0;font-size:13px;color:#8A7A63;font-style:italic;">Bu mektup, hadibarisalim.com üzerinden gönderilmiştir.</p>`;
+  const footerText = isAnonymous 
+    ? "Bu e-posta, hadibarisalim.com platformu aracılığıyla bir kullanıcımız tarafından anonim olarak oluşturulmuş ve size iletilmiştir. Platformumuz, insanların içlerinden geçenleri dürüstçe yazabilmeleri için güvenli bir iletişim köprüsü kurmayı amaçlar." 
+    : "Bu e-posta, hadibarisalim.com platformu aracılığıyla oluşturulmuş ve size iletilmiştir. Platformumuz, insanların içlerinden geçenleri dürüstçe yazabilmeleri için güvenli bir iletişim köprüsü kurmayı amaçlar.";
 
-  const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" alt="" style="display:none;" />`;
+  const footer = `
+    <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
+    <p style="margin:0;font-size:11px;color:#8A7A63;opacity:0.8;">
+      Bu tür mektupların doğası gereği kişisel olduğunu hatırlatmak isteriz. Eğer bu mesajı bir hata sonucu aldığınızı düşünüyorsanız veya gelecekte sistemimiz üzerinden benzer e-postalar almak istemiyorsanız, lütfen platformumuzu ziyaret ederek iletişime geçin. 
+      Güvenliğiniz ve gizliliğiniz için sistemimiz katı gönderim limitleriyle korunmaktadır.
+    </p>`;
+
+  const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" border="0" style="display:block; border:none; outline:none; text-decoration:none;" alt="" />`;
 
   return `
 <!DOCTYPE html>
@@ -334,14 +347,29 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
 /* ───────── API: Tracking Pixel ───────── */
 app.get("/api/track/:id/pixel.gif", async (req, res) => {
   const id = req.params.id;
+  const userAgent = (req.headers["user-agent"] || "").toLowerCase();
+  const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
 
   try {
     const letter = await Letter.findOne({ trackingId: id });
-    if (letter && letter.status !== "read") {
-      letter.status = "read";
-      letter.readAt = new Date();
-      await letter.save();
-      console.log(`👁  Mektup okundu [ID: ${id}]`);
+    if (letter) {
+      const isBot = /bot|spider|crawl|scan|virus|barracuda|mimecast|proofpoint|appengine/i.test(userAgent);
+      const timeDiffMs = Date.now() - new Date(letter.sentAt).getTime();
+      
+      console.log(`[PIXEL HIT] ID: ${id} | TimeDiff: ${timeDiffMs}ms | IP: ${ip} | UA: ${userAgent}`);
+
+      if (letter.status !== "read") {
+        // E-posta gönderildikten sonraki ilk 30 saniye içinde gelen okumalar 
+        // genellikle spam filtreleri/botlar tarafından yapılır.
+        if (!isBot && timeDiffMs > 30000) {
+          letter.status = "read";
+          letter.readAt = new Date();
+          await letter.save();
+          console.log(`👁  Mektup okundu [ID: ${id}]`);
+        } else {
+          console.log(`[PIXEL IGNORED] ID: ${id} | isBot: ${isBot} | timeDiffMs: ${timeDiffMs}`);
+        }
+      }
     }
   } catch (err) {
     console.error("Tracking pixel DB hatası:", err);
