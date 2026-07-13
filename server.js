@@ -359,9 +359,9 @@ app.get("/api/track/:id/pixel.gif", async (req, res) => {
       console.log(`[PIXEL HIT] ID: ${id} | TimeDiff: ${timeDiffMs}ms | IP: ${ip} | UA: ${userAgent}`);
 
       if (letter.status !== "read") {
-        // E-posta gönderildikten sonraki ilk 30 saniye içinde gelen okumalar 
-        // genellikle spam filtreleri/botlar tarafından yapılır.
-        if (!isBot && timeDiffMs > 30000) {
+        // E-posta gönderildikten sonraki ilk 5 saniye içinde gelen okumalar 
+        // genellikle otomatik botlar tarafından yapılır. 
+        if (!isBot && timeDiffMs > 5000) {
           letter.status = "read";
           letter.readAt = new Date();
           await letter.save();
