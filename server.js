@@ -382,6 +382,31 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 
+/* ───────── API: Migrate Legacy Data (Temporary) ───────── */
+app.get("/api/migrate", async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const dataPath = path.join(__dirname, 'data', 'letters.json');
+    if (fs.existsSync(dataPath)) {
+      const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+      let count = 0;
+      for (const [id, info] of Object.entries(data)) {
+        await Letter.updateOne(
+          { trackingId: id },
+          { $set: { status: info.status, sentAt: info.sentAt, readAt: info.readAt } },
+          { upsert: true }
+        );
+        count++;
+      }
+      return res.json({ ok: true, message: `${count} legacy letters migrated to MongoDB!` });
+    }
+    return res.json({ ok: false, message: "No legacy data found." });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 /* ───────── Start ───────── */
 /* ───────── Start ───────── */
 if (process.env.NODE_ENV !== "production") {
