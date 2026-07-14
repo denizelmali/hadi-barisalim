@@ -126,7 +126,31 @@
     });
   }
 
-  /* ───────── Send State ───────── */
+  /* ───────── Gece Modu (Dark Mode) ───────── */
+  var themeToggle = document.getElementById("theme-toggle");
+  var themeIcon = themeToggle ? themeToggle.querySelector(".theme-icon") : null;
+  
+  // LocalStorage'dan temayı yükle
+  var savedTheme = localStorage.getItem("hadi_barisalim_theme");
+  if (savedTheme === "dark") {
+    document.documentElement.classList.add("dark-theme");
+    if (themeIcon) themeIcon.textContent = "☀️";
+  }
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", function() {
+      document.documentElement.classList.toggle("dark-theme");
+      if (document.documentElement.classList.contains("dark-theme")) {
+        localStorage.setItem("hadi_barisalim_theme", "dark");
+        if (themeIcon) themeIcon.textContent = "☀️";
+      } else {
+        localStorage.setItem("hadi_barisalim_theme", "light");
+        if (themeIcon) themeIcon.textContent = "🌙";
+      }
+    });
+  }
+
+  /* ───────── Template System ───────── */
   function updateSendState() {
     var validEmail = isValidEmail(els.recipientEmail.value);
     var nameOk = hasName();

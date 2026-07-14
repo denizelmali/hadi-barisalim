@@ -22,6 +22,46 @@
   --text-main: var(--text);
   --bg-main: var(--ink);
 }
+
+:root.dark-theme {
+  --ink: #090a0f;
+  --ink-soft: #12141c;
+  --ink-line: #232736;
+  --paper: #161821;
+  --paper-line: #2c3142;
+  --text-on-paper: #e2e4ed;
+  --text-on-paper-muted: #8d93a5;
+  --text: #e2e4ed;
+  --text-muted: #747b91;
+  --gold: #b38b4d;
+  --gold-bright: #d1b175;
+  --rose: #b37e80;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--ink-line);
+  color: var(--text);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
 * { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; }
