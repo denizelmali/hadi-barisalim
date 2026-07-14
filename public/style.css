@@ -1,7 +1,7 @@
 :root {
-  --ink: #1E1520;
-  --ink-soft: #2A1E2C;
-  --ink-line: #3C2D3E;
+  --ink: #231117;
+  --ink-soft: #30171F;
+  --ink-line: #45212C;
   --gold: #C9A15B;
   --gold-bright: #E7C685;
   --rose: #E3AFB0;
@@ -30,8 +30,8 @@ body {
   margin: 0;
   background: var(--ink);
   background-image: 
-    radial-gradient(circle at 10% 0%, rgba(42, 30, 44, 0.8) 0%, transparent 50%),
-    radial-gradient(circle at 90% 100%, rgba(60, 45, 62, 0.4) 0%, transparent 50%);
+    radial-gradient(circle at 15% 0%, rgba(69, 33, 44, 0.7) 0%, transparent 60%),
+    radial-gradient(circle at 85% 100%, rgba(48, 23, 31, 0.6) 0%, transparent 60%);
   background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-body);
@@ -46,8 +46,8 @@ body::before {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: 
-    radial-gradient(circle at 25% 75%, rgba(201, 161, 91, 0.08), transparent 40%),
-    radial-gradient(circle at 75% 25%, rgba(227, 175, 176, 0.06), transparent 40%);
+    radial-gradient(circle at 20% 80%, rgba(227, 175, 176, 0.12), transparent 45%),
+    radial-gradient(circle at 80% 20%, rgba(201, 161, 91, 0.08), transparent 45%);
   pointer-events: none;
   z-index: -1;
   animation: ambient-pulse 15s ease-in-out infinite alternate;
