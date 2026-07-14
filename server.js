@@ -8,7 +8,7 @@ const nodemailer = require("nodemailer");
 const path = require("path");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
-
+const { isToxic } = require("./utils/moderation");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -321,6 +321,14 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     // Spotify link güvenlik doğrulaması
     if (spotifyLink && !isValidSpotifyUrl(spotifyLink)) {
       return res.status(400).json({ ok: false, error: "Geçersiz Spotify linki. Sadece open.spotify.com linkleri kabul edilir." });
+    }
+
+    // Toksik İçerik / Küfür Filtresi Kontrolü
+    if (isToxic(customSubject) || isToxic(customBody) || isToxic(senderName) || isToxic(recipientName)) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: "Mesajınız topluluk kurallarımıza (hakaret/nefret söylemi) aykırı içerik barındırdığı için gönderilemedi." 
+      });
     }
 
     // Validation
