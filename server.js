@@ -1,21 +1,70 @@
 require("dotenv").config();
 
 const express = require("express");
+const compression = require("compression");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const nodemailer = require("nodemailer");
 const path = require("path");
-const fs = require("fs");
 const crypto = require("crypto");
 const mongoose = require("mongoose");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* ───────── Database Setup (MongoDB) ───────── */
-mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/hadibarisalim")
-  .then(() => console.log("✔  MongoDB bağlantısı başarılı"))
-  .catch(err => console.error("✘  MongoDB bağlantı hatası:", err.message));
+/* ───────── Deneme Modu ─────────
+   true  = Rate limiting KAPALI (test aşaması)
+   false = Rate limiting AKTİF  (production)
+   Production'a geçince bu değeri false yapın veya .env'ye DENEME_MODU=false ekleyin.
+───────────────────────────────── */
+const DENEME_MODU = process.env.DENEME_MODU !== "false"; // varsayılan: true (test modu)
+
+/* ───────── Database Setup (MongoDB + Vercel Connection Caching) ───────── */
+let isDbConnected = false;
+
+const MONGO_OPTIONS = {
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 10000,
+};
+
+// MongoDB bağlantı fonksiyonu — SRV başarısız olursa fallback URI'ye geçer
+async function connectMongoDB() {
+  if (mongoose.connection.readyState !== 0) return; // Zaten bağlıysa atla
+
+  const primaryUri = process.env.MONGODB_URI || "mongodb://localhost:27017/hadibarisalim";
+  const fallbackUri = process.env.MONGODB_URI_FALLBACK;
+
+  try {
+    await mongoose.connect(primaryUri, MONGO_OPTIONS);
+    isDbConnected = true;
+    console.log("✔  MongoDB bağlantısı başarılı (SRV)");
+  } catch (err) {
+    console.error("✘  MongoDB SRV bağlantı hatası:", err.message);
+
+    // Fallback: Doğrudan shard adresleriyle bağlan
+    if (fallbackUri) {
+      console.log("↻  Fallback URI deneniyor (direkt shard adresleri)...");
+      try {
+        await mongoose.connect(fallbackUri, MONGO_OPTIONS);
+        isDbConnected = true;
+        console.log("✔  MongoDB bağlantısı başarılı (Fallback)");
+      } catch (fallbackErr) {
+        isDbConnected = false;
+        console.error("✘  MongoDB fallback bağlantı hatası:", fallbackErr.message);
+        console.error("   Atlas Dashboard: https://cloud.mongodb.com");
+      }
+    } else {
+      isDbConnected = false;
+      console.error("   MONGODB_URI_FALLBACK tanımlı değil. .env dosyasını kontrol edin.");
+      console.error("   Atlas Dashboard: https://cloud.mongodb.com");
+    }
+  }
+}
+
+connectMongoDB();
+
+mongoose.connection.on("connected", () => { isDbConnected = true; });
+mongoose.connection.on("disconnected", () => { isDbConnected = false; });
 
 const letterSchema = new mongoose.Schema({
   trackingId: { type: String, required: true, unique: true },
@@ -27,7 +76,29 @@ const letterSchema = new mongoose.Schema({
 const Letter = mongoose.model("Letter", letterSchema);
 
 function generateTrackingId() {
-  return "HB-" + crypto.randomBytes(2).toString("hex").toUpperCase();
+  return "HB-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+}
+
+/* ───────── HTML Escape (XSS Koruması) ───────── */
+function escapeHtml(str) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/* ───────── Spotify URL Doğrulama ───────── */
+function isValidSpotifyUrl(url) {
+  if (!url) return true; // Boş ise sorun yok, opsiyonel alan
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "open.spotify.com";
+  } catch {
+    return false;
+  }
 }
 
 /* ───────── Security ───────── */
@@ -45,23 +116,70 @@ app.use(
   })
 );
 
+app.use(compression()); // Gzip sıkıştırması
 app.use(express.json({ limit: "10kb" }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  maxAge: "1d"
+}));
 
-/* ───────── Rate Limiting: 3 mails per day per IP ───────── */
-const sendLimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000, // 24 hours
-  max: 3,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    ok: false,
-    error: "Günlük gönderim limitinize ulaştınız (3/gün). Yarın tekrar deneyebilirsiniz.",
-  },
-  keyGenerator: (req) => {
-    return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  },
+/* ───────── CORS Koruması ───────── */
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    "https://hadibarisalim.com",
+    "https://www.hadibarisalim.com"
+  ];
+  // Geliştirme ortamında localhost'a izin ver
+  if (process.env.NODE_ENV !== "production") {
+    allowedOrigins.push("http://localhost:" + PORT);
+  }
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
 });
+
+/* ───────── Genel API Rate Limiter (Tüm /api/* rotaları) ───────── */
+if (!DENEME_MODU) {
+  const generalApiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 dakika
+    max: 100, // 15 dakikada max 100 istek
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { ok: false, error: "Çok fazla istek gönderdiniz. Lütfen biraz bekleyin." },
+    keyGenerator: (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip,
+  });
+  app.use("/api/", generalApiLimiter);
+  console.log("🛡  Genel API rate limiter AKTİF");
+} else {
+  console.log("⚠  DENEME MODU: Genel API rate limiter KAPALI");
+}
+
+/* ───────── Rate Limiting: Mail gönderim limiti ───────── */
+let sendLimiter;
+if (!DENEME_MODU) {
+  sendLimiter = rateLimit({
+    windowMs: 24 * 60 * 60 * 1000, // 24 hours
+    max: 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      ok: false,
+      error: "Günlük gönderim limitinize ulaştınız (3/gün). Yarın tekrar deneyebilirsiniz.",
+    },
+    keyGenerator: (req) => {
+      return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    },
+  });
+  console.log("🛡  Mail gönderim rate limiter AKTİF (3/gün)");
+} else {
+  // Deneme modunda boş middleware
+  sendLimiter = (req, res, next) => next();
+  console.log("⚠  DENEME MODU: Mail gönderim rate limiter KAPALI");
+}
 
 /* ───────── SMTP Transporter ───────── */
 const transporter = nodemailer.createTransport({
@@ -200,6 +318,11 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     const customBody = sanitize(req.body.body, 5000);
     const spotifyLink = sanitize(req.body.spotifyLink, 500);
 
+    // Spotify link güvenlik doğrulaması
+    if (spotifyLink && !isValidSpotifyUrl(spotifyLink)) {
+      return res.status(400).json({ ok: false, error: "Geçersiz Spotify linki. Sadece open.spotify.com linkleri kabul edilir." });
+    }
+
     // Validation
     if (!recipientName) {
       return res.status(400).json({ ok: false, error: "Alıcının adı gerekli." });
@@ -293,13 +416,14 @@ app.post("/api/send", sendLimiter, async (req, res) => {
 function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId, serverUrl) {
   const paragraphs = textBody
     .split("\n\n")
-    .map((p) => p.replace(/\n/g, "<br>"))
+    .map((p) => escapeHtml(p).replace(/\n/g, "<br>"))
     .map((p) => `<p style="margin:0 0 16px;line-height:1.7;color:#2B211B;">${p}</p>`)
     .join("");
 
-  const spotifyHtml = spotifyLink
+  const safeSpotifyLink = spotifyLink ? escapeHtml(spotifyLink) : "";
+  const spotifyHtml = safeSpotifyLink
     ? `<div style="margin: 32px 0; text-align: center;">
-         <a href="${spotifyLink}" target="_blank" style="display: inline-block; background: #C9A15B; color: #1E1520; text-decoration: none; padding: 12px 24px; border-radius: 999px; font-weight: bold; font-family: -apple-system, sans-serif; font-size: 14px;">
+         <a href="${safeSpotifyLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #C9A15B; color: #1E1520; text-decoration: none; padding: 12px 24px; border-radius: 999px; font-weight: bold; font-family: -apple-system, sans-serif; font-size: 14px;">
            🎵 Bu mektuba eklenen şarkıyı dinle
          </a>
        </div>`
@@ -390,6 +514,8 @@ app.get("/api/track/:id/pixel.gif", async (req, res) => {
     "Content-Type": "image/gif",
     "Content-Length": pixel.length,
     "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    "Pragma": "no-cache",
+    "Expires": "0",
   });
   res.end(pixel);
 });
@@ -404,7 +530,16 @@ app.get("/api/track/:id", async (req, res) => {
       return res.status(404).json({ ok: false, error: "Mektup bulunamadı." });
     }
 
-    res.json({ ok: true, data: letter });
+    // Sadece gerekli alanları döndür (hassas veri filtreleme)
+    res.json({
+      ok: true,
+      data: {
+        trackingId: letter.trackingId,
+        status: letter.status,
+        sentAt: letter.sentAt,
+        readAt: letter.readAt
+      }
+    });
   } catch (err) {
     console.error("Tracking API hatası:", err);
     res.status(500).json({ ok: false, error: "Sunucu hatası" });
@@ -413,14 +548,24 @@ app.get("/api/track/:id", async (req, res) => {
 
 /* ───────── API: Health Check ───────── */
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, timestamp: new Date().toISOString() });
+  res.json({
+    ok: true,
+    timestamp: new Date().toISOString(),
+    db: isDbConnected ? "connected" : "disconnected",
+    mode: DENEME_MODU ? "test" : "production"
+  });
 });
 
-/* ───────── API: Migrate Legacy Data (Temporary) ───────── */
+/* ───────── API: Migrate Legacy Data (Secret Key ile korumalı) ───────── */
 app.get("/api/migrate", async (req, res) => {
+  // Güvenlik: Sadece doğru secret key ile çalışır
+  const secret = req.query.key || req.headers["x-migrate-key"];
+  if (!secret || secret !== (process.env.MIGRATE_SECRET || "hb-migrate-2026")) {
+    return res.status(403).json({ ok: false, error: "Yetkisiz erişim." });
+  }
+
   try {
     const fs = require('fs');
-    const path = require('path');
     const dataPath = path.join(__dirname, 'data', 'letters.json');
     if (fs.existsSync(dataPath)) {
       const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
@@ -441,7 +586,6 @@ app.get("/api/migrate", async (req, res) => {
   }
 });
 
-/* ───────── Start ───────── */
 /* ───────── Start ───────── */
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => {

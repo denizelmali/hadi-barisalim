@@ -354,15 +354,15 @@
         return;
       }
 
-      // Eğer kullanıcı "HB-" girmeden sadece 4 haneli kodu girdiyse otomatik ekleyelim
-      if (code.length === 4 && !code.startsWith("HB-")) {
+      // Eğer kullanıcı "HB-" girmeden sadece kodu girdiyse otomatik ekleyelim
+      if (!code.startsWith("HB-") && (code.length === 4 || code.length === 8)) {
         code = "HB-" + code;
         els.trackingCodeInput.value = code;
       }
 
-      // Kod formatı doğrulaması (HB-XXXX formatı)
-      if (!/^HB-[0-9A-F]{4}$/.test(code)) {
-        showTrackingResult("Geçersiz kod formatı! Kod 'HB-XXXX' formatında olmalıdır.", "error");
+      // Kod formatı doğrulaması (HB-XXXX veya HB-XXXXXXXX formatı — eski ve yeni kodlar desteklenir)
+      if (!/^HB-[0-9A-F]{4}$/.test(code) && !/^HB-[0-9A-F]{8}$/.test(code)) {
+        showTrackingResult("Geçersiz kod formatı! Kod 'HB-XXXX' veya 'HB-XXXXXXXX' formatında olmalıdır.", "error");
         return;
       }
 
