@@ -205,7 +205,8 @@
           mode: selectedMode,
           templateId: selectedTemplateId,
           spotifyLink: els.spotifyLink ? els.spotifyLink.value.trim() : "",
-          consentGiven: els.consentTerms.checked && els.consentKvkk.checked
+          consentGiven: els.consentTerms.checked && els.consentKvkk.checked,
+          website: document.getElementById("honeypot") ? document.getElementById("honeypot").value : ""
         })
       });
 
@@ -216,9 +217,27 @@
         if (els.successTrackingCode && data.trackingId) {
           els.successTrackingCode.textContent = data.trackingId;
         }
-        // Show success overlay
-        els.successOverlay.hidden = false;
-        showToast("Mektubun başarıyla gönderildi! 💌", "success");
+        // Show envelope animation
+        var animOverlay = document.getElementById("animation-overlay");
+        if (animOverlay) {
+          animOverlay.hidden = false;
+          // Trigger animation
+          requestAnimationFrame(function() {
+            animOverlay.classList.add("animate-fly");
+          });
+          
+          // Wait for animation to finish, then show success
+          setTimeout(function() {
+            animOverlay.hidden = true;
+            animOverlay.classList.remove("animate-fly");
+            els.successOverlay.hidden = false;
+            showToast("Mektubun başarıyla gönderildi! 💌", "success");
+          }, 2700);
+        } else {
+          // Fallback if animation overlay is missing
+          els.successOverlay.hidden = false;
+          showToast("Mektubun başarıyla gönderildi! 💌", "success");
+        }
       } else {
         showToast(data.error || "Bir hata oluştu.", "error");
       }

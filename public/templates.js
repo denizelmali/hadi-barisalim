@@ -133,6 +133,48 @@
         subject: "Özür dilerim ve çok özledim, {isim}",
         body: "Canım {isim},\n\nLafı hiç dolandırmadan söyleyeceğim: Nerede yanlış yaptıysam özür dilerim. Haklı çıkmaktan çok, seninle yeniden iyi olmaya ihtiyacım var.\n\nAramızdaki bu soğuk savaş artık bitsin istiyorum. Çünkü sensizlik beklediğimden çok daha zor ve anlamsızmış.\n\nLütfen bu mesajımı bir zayıflık değil, sana verdiğim değerin bir göstergesi olarak kabul et. Seni seviyorum."
       }
+    ],
+    dogum_gunu: [
+      {
+        subject: "Bugün senin günün, {isim}",
+        body: "Sevgili {isim},\n\nBugün aklıma ilk düşen şey senin doğum günün oldu. Belki aramızdaki yollar eskisi gibi değil, belki hayat bizi farklı yönlere savurdu ama bu özel günde seni hatırlamamak imkânsızdı.\n\nSana kırgınlıkları bir kenara bırakarak yazıyorum: Ayrılsak da benim için çok değerlisin. Kalbinden geçen tüm güzelliklerin seninle olmasını dilerim.\n\nİyi ki doğdun, yeni yaşın sana sadece mutluluk getirsin."
+      },
+      {
+        subject: "Ayrı kalsak da iyi ki varsın, {isim}",
+        body: "Merhaba {isim},\n\nTarih yaprakları bugünü gösterdiğinde, içimde sadece o tanıdık tebessüm belirdi. Seninle geçirdiğim güzel günlerin hatırına, bu özel günü kuru bir sessizlikle geçirmek istemedim.\n\nAramızdaki mesafe ne olursa olsun, bir zamanlar hayatıma kattığın renkler için teşekkür ederim. Umarım yeni yaşında her şey hayal ettiğinden bile güzel olur.\n\nDoğum günün kutlu olsun."
+      },
+      {
+        subject: "Bu özel günde sadece iyi dileklerimle, {isim}",
+        body: "{isim},\n\nBugün senin doğum günün... Belki eskisi gibi kutlayamıyoruz, belki aramızda konuşulmayanlar var ama hiçbir şey sana içten bir 'iyi ki doğdun' dememe engel değil.\n\nSana değer verdiğimi her zaman bil. Yeni yaşının sana huzur, başarı ve kocaman gülücükler getirmesini diliyorum.\n\nMutlu yıllar."
+      },
+      {
+        subject: "Bir zamanlar en yakınım, {isim}",
+        body: "Sevgili {isim},\n\nTakvimde bugünü görünce içim cız etti biraz. Eskiden olsa bugün için ne planlar yapardık diye düşünmeden edemedim. Zaman bizi uzaklaştırmış olabilir ama kalbimdeki yerin ve sana duyduğum saygı hâlâ aynı.\n\nUmarım bugün sevdiklerinle, dilediğin gibi harika bir gün geçirirsin. Kendine çok iyi bak.\n\nDoğum günün kutlu olsun."
+      },
+      {
+        subject: "Sadece hatırlatmak istedim, iyi ki doğdun {isim}",
+        body: "Selam {isim},\n\nBugün senin doğum günün, unuturum sanma. Yaşanan onca şeyin ardından sana yazmak doğru mu diye düşündüm ama içimden gelen sese kulak verdim.\n\nBenim penceremden bakınca, senin mutlu olmanı istemekten başka bir his kalmadı geriye. Umarım hayat sana hep güzel sürprizler hazırlar.\n\nMutlu yaşlar."
+      },
+      {
+        subject: "Mesafeler iyi dileklere engel değil, {isim}",
+        body: "Merhaba {isim},\n\nBelki de şu an bu maili okuyunca şaşıracaksın. Ama özel insanların özel günleri unutulmaz. Ve sen benim hikayemde hep özel kalacaksın.\n\nYeni yaşında tüm yolların açık olsun. Gözlerindeki o güzel ışık hiç sönmesin.\n\nDoğum günün kutlu olsun, iyi ki doğdun."
+      },
+      {
+        subject: "Yıllar geçse de hatırlanacaksın, {isim}",
+        body: "{isim},\n\nBugün senin yeni yaşının ilk günü. Eski günlerin hatırına, tüm kırgınlıkları bir kenara bırakıp sana kocaman bir tebessüm gönderiyorum.\n\nSen her şeyin en iyisini hak ediyorsun. Umarım bu yeni yaş, hayatında beklediğin o güzel değişimin başlangıcı olur.\n\nMutlu yıllar!"
+      },
+      {
+        subject: "Bir tebrik borcum var, {isim}",
+        body: "Sevgili {isim},\n\nAramızda ne geçerse geçsin, bugün senin en özel günün. Bu günde seni yalnız hissettirmek istemedim.\n\nYüzünden gülümsemenin, kalbinden umudun eksik olmadığı şahane bir yıl dilerim sana. Kendine hak ettiğin gibi iyi bak.\n\nDoğum günün kutlu olsun."
+      },
+      {
+        subject: "Küçük bir kutlama mesajı, {isim}",
+        body: "Selam {isim},\n\nBugün sadece sana iyi dileklerimi sunmak için yazıyorum. Başka hiçbir beklentim, hiçbir sitemim yok. Sadece, bir zamanlar kalbime dokunan insanın yeni yaşını kutlamak istedim.\n\nYeni yaşın sana şans ve huzur getirsin. Bütün güzellikler seninle olsun.\n\nİyi ki doğdun."
+      },
+      {
+        subject: "Her şeye rağmen iyi ki doğdun, {isim}",
+        body: "{isim},\n\nHayat çok garip değil mi? Eskiden en yakınındayken şimdi bir maille kutluyorum doğum gününü. Ama inanki içimdeki iyi niyet ilk günkü kadar taze.\n\nLütfen her zaman çok mutlu ol. Güzelliklerin seni bulacağı, harika bir yaş diliyorum.\n\nDoğum günün kutlu olsun."
+      }
     ]
   };
 }));

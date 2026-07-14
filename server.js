@@ -223,6 +223,13 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     const mode = sanitize(req.body.mode, 10); // "anonymous" or "named"
     const templateId = req.body.templateId;
     const spotifyLink = sanitize(req.body.spotifyLink, 500);
+    const honeypot = req.body.website;
+
+    // Görünmez Bot Koruması (Honeypot)
+    if (honeypot) {
+      // Eğer bot bu gizli alanı doldurduysa isteği anında sahte (200) bir başarıyla reddediyoruz
+      return res.json({ ok: true, message: "Mektubun başarıyla gönderildi! 💌", trackingId: "HB-BOTTEST" });
+    }
 
     // Spotify link güvenlik doğrulaması
     if (spotifyLink && !isValidSpotifyUrl(spotifyLink)) {

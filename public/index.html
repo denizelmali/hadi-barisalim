@@ -53,6 +53,8 @@
         <input type="email" id="recipient-email" placeholder="ornek@mail.com" autocomplete="off">
       </div>
     </div>
+    <!-- Honeypot -->
+    <input type="text" id="honeypot" name="website" style="display:none" autocomplete="off" tabindex="-1" aria-hidden="true">
   </section>
 
   <svg class="seam seam--divider" viewBox="0 0 640 20" preserveAspectRatio="none" aria-hidden="true">
@@ -112,6 +114,11 @@
         <span class="tone-card__mark" aria-hidden="true">◇</span>
         <span class="tone-card__title">Uzlaşmacı</span>
         <span class="tone-card__desc">Sorumluluk al, bir adım öne çık, konuşmaya davet et.</span>
+      </button>
+      <button type="button" class="tone-card" data-tone="dogum_gunu" disabled>
+        <span class="tone-card__mark" aria-hidden="true">🎂</span>
+        <span class="tone-card__title">Doğum Günü</span>
+        <span class="tone-card__desc">Ayrılsanız da özel gününü hatırla, içten bir tebrik gönder.</span>
       </button>
     </div>
 
@@ -198,6 +205,18 @@
     <h3 class="legal-modal-title" id="legal-modal-title">Başlık</h3>
     <div class="legal-modal-content" id="legal-modal-content">
       <!-- İçerik JS tarafından doldurulacak -->
+    </div>
+  </div>
+</div>
+
+<!-- Envelope Animation Overlay -->
+<div class="animation-overlay" id="animation-overlay" hidden>
+  <div class="envelope-container">
+    <div class="envelope">
+      <div class="envelope-flap"></div>
+      <div class="envelope-body">
+        <div class="envelope-heart"></div>
+      </div>
     </div>
   </div>
 </div>
