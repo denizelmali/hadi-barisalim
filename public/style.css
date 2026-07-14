@@ -24,18 +24,28 @@
 }
 
 :root.dark-theme {
-  --ink: #141112;
-  --ink-soft: #1c181a;
-  --ink-line: #30292c;
-  --paper: #221d1f;
-  --paper-line: #383134;
-  --text-on-paper: #d8d3cd;
-  --text-on-paper-muted: #958d88;
-  --text: #d8d3cd;
-  --text-muted: #8a827d;
+  --ink: #050505;
+  --ink-soft: #111111;
+  --ink-line: #222222;
+  --paper: #0a0a0a;
+  --paper-line: #1f1f1f;
+  --text-on-paper: #e5e5e5;
+  --text-on-paper-muted: #888888;
+  --text: #e5e5e5;
+  --text-muted: #888888;
   --gold: #b38b4d;
   --gold-bright: #d1b175;
   --rose: #b37e80;
+}
+
+html.dark-theme body {
+  background-image: 
+    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.02) 0%, transparent 60%),
+    radial-gradient(circle at 85% 100%, rgba(255, 255, 255, 0.02) 0%, transparent 60%);
+}
+
+html.dark-theme body::before {
+  opacity: 0.3;
 }
 
 /* Theme Toggle Button */
