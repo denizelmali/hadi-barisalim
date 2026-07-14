@@ -1,100 +1,12 @@
 (function () {
   "use strict";
 
-  /* ───────── Templates (3 variants per tone) ───────── */
-  var templates = {
-    duygusal: [
-      {
-        subject: "Sana içimden geldiği gibi yazıyorum, {isim}",
-        body:
-          "Sevgili {isim},\n\n" +
-          "Bu satırları yazarken elimin biraz titrediğini itiraf etmeliyim. Aramızdaki bu sessizliğin içinde bile seni düşünmeden geçen bir gün olmadı. Birlikte güldüğümüz anları, en sıradan günleri bile özel kılan o hâli çok özledim.\n\n" +
-          "Belki bazı şeyleri doğru söyleyemedim, belki bazı anları kaçırdım. Ama şunu bilmeni isterim: sana duyduğum sevgi hâlâ burada, tam da bıraktığımız yerde duruyor.\n\n" +
-          "Sadece konuşabilir miyiz? Karşılıklı, sakince, kalbimizi ortaya koyarak. Cevabın ne olursa olsun, bunu sana söylemem gerekiyordu.\n\n" +
-          "Seni düşünüyorum."
-      },
-      {
-        subject: "Bazı şeyler söylenmeden kalmamalı, {isim}",
-        body:
-          "Canım {isim},\n\n" +
-          "Bu mesajı kaç kere yazmaya başlayıp sildiğimi bilsen… Ama artık içimde tutamıyorum. Seninle geçirdiğimiz her an, her kahkaha, her sessizlik bile benim için anlam taşıyordu.\n\n" +
-          "Şu an aramızda ne varsa — kırgınlık mı, yanlış anlama mı, bıkkınlık mı — bunların hiçbiri sana olan sevgimi silmeye yetmedi. Ve sanırım hiçbir zaman yetemeyecek.\n\n" +
-          "Senden tek istediğim bir şans daha değil; sadece bir konuşma. Yüz yüze, gözlerinin içine bakarak, kalbimdekileri anlatmak istiyorum.\n\n" +
-          "Ne olursa olsun, sen benim için hep özel kalacaksın."
-      },
-      {
-        subject: "Gece yine seni düşündüm, {isim}",
-        body:
-          "{isim},\n\n" +
-          "Gecenin bu saatinde yine aklıma geldin. Aslında gitmiyorsun ki aklımdan — hep oradasın. Birlikte yürüdüğümüz yolları, paylaştığımız bakışları, yarıda kalan cümlelerimizi düşünüyorum.\n\n" +
-          "İkimiz de mükemmel değildik. Belki de mükemmel olmaya çalışırken birbirimizi kaybettik. Ama sana şunu söyleyebilirim: hâlâ seninle aynı gökyüzüne baktığımda içim sızlıyor.\n\n" +
-          "Bu mektubu sana uzatılmış bir el olarak düşün. Tutmak senin elinde.\n\n" +
-          "Hâlâ buradayım."
-      }
-    ],
-    sitemkar: [
-      {
-        subject: "İçimde kalanları sana anlatmam lazım, {isim}",
-        body:
-          "{isim},\n\n" +
-          "Bunu yazmak kolay olmadı, çünkü içimde hâlâ küçük bir sitem var. Bazı şeyleri konuşmadan bitirdik, bazı cümleler yarım kaldı. Sen gittikten sonra ben o yarım cümlelerle baş başa kaldım.\n\n" +
-          "Kırgınım, evet. Ama bu kırgınlığın altında hâlâ seni önemsediğim gerçeği duruyor. Keşke o son günlerde ikimiz de biraz daha sabırlı olabilseydik.\n\n" +
-          "Bunu bir suçlama olarak değil, içimi dökme ihtiyacı olarak oku. Belki hâlâ konuşacak şeylerimiz vardır."
-      },
-      {
-        subject: "Bunu sana söylemem gerekiyordu, {isim}",
-        body:
-          "{isim},\n\n" +
-          "Uzun zamandır içimde biriktirdiğim şeyler var ve artık taşıyamıyorum. Beni tanıyorsun — kolay kolay sitem etmem, ama bu sefer farklı.\n\n" +
-          "Senin için orada olduğum zamanlarda, benim için orada olmadığını hissettim. Belki farkında değildin, belki farklı bir dönemindeydin. Ama o boşluk bende derin bir iz bıraktı.\n\n" +
-          "Yine de sana kızgın değilim — daha çok üzgünüm. Çünkü seninle olan ilişkimiz benim için gerçekten değerliydi. Hâlâ değerli.\n\n" +
-          "Bu satırları okuduktan sonra ne hissedeceğini bilemiyorum. Ama en azından bilmeni istedim."
-      },
-      {
-        subject: "Bir şeyleri konuşmadan bırakmak istemiyorum, {isim}",
-        body:
-          "{isim},\n\n" +
-          "Biliyorum, belki bu mesajı beklemiyordun. Ama suskunluğumun arkasında \"her şey yolunda\" olmadığını anlamanı istiyorum.\n\n" +
-          "Seninle paylaştığımız güzel anların gölgesinde, beni inciten küçük ama biriken şeyler de vardı. Her seferinde \"geçer\" dedim, ama geçmedi. Biriktirdim ve sonunda aramıza mesafe koydum.\n\n" +
-          "Seni kaybetmek istemezdim, ama kendimi de kaybetmek istemiyordum. Belki şimdi, biraz zaman geçtikten sonra, ikimiz de daha net görebiliriz.\n\n" +
-          "Konuşmak istersen, kapım açık."
-      }
-    ],
-    uzlasmaci: [
-      {
-        subject: "Bir adım atmak istiyorum, {isim}",
-        body:
-          "Merhaba {isim},\n\n" +
-          "Aramızda olanları uzun zamandır düşünüyorum ve kendi payıma düşen hataları artık daha net görebiliyorum. Seni suçlamak için değil, gerçekten bir şeyleri düzeltmek için yazıyorum.\n\n" +
-          "İkimiz de o süreci farklı yaşamış olabiliriz ama ben, geride bıraktığımız şeyin bir konuşmayı hak ettiğini düşünüyorum. İstersen kısa bir kahve molası, istersen sadece birkaç dakikalık bir telefon görüşmesi — sana nasıl uygunsa.\n\n" +
-          "Hazır olduğunda ben buradayım."
-      },
-      {
-        subject: "Barışmak için geç değil diye düşünüyorum, {isim}",
-        body:
-          "Merhaba {isim},\n\n" +
-          "Bu mesajı yazmak için çok düşündüm, çünkü doğru kelimeleri bulmak istedim. Aramızdaki sorun ne olursa olsun, ikimizin de iyi niyetli olduğuna inanıyorum.\n\n" +
-          "Kendi hatalarımı görüyorum ve bunlarla yüzleşmeye hazırım. Senden tek beklentim bir fırsat — oturup sakin sakin konuşma fırsatı. Suçlama yok, yargılama yok, sadece dürüstlük.\n\n" +
-          "Eğer sen de hazırsan, bir çay/kahve içelim mi? Zamanlama ve yer tamamen sana kalmış.\n\n" +
-          "İyi dileklerimle."
-      },
-      {
-        subject: "Seninle konuşmak istiyorum, {isim}",
-        body:
-          "Selam {isim},\n\n" +
-          "Bir süredir aramızdaki bu sessizliği düşünüyorum. İkimiz de belki inatlaştık, belki gururumuza yenildik. Ama sonuçta ikimiz de bundan mutlu değiliz — en azından ben değilim.\n\n" +
-          "Sorumluluk almaktan kaçınmıyorum. Nerede hata yaptıysam kabul ediyorum. Ve senden de aynısını istemiyorum bile — sadece konuşabilmemizi istiyorum.\n\n" +
-          "Hayat kısa, güzel insanlarla küs kalmak için çok kısa. Ne dersin, bir adım atalım mı?\n\n" +
-          "Seni düşünüyorum."
-      }
-    ]
-  };
-
   /* ───────── Random Template Picker ───────── */
   function pickTemplate(tone) {
-    var variants = templates[tone];
+    var variants = window.letterTemplates[tone];
     if (!variants || variants.length === 0) return null;
-    return variants[Math.floor(Math.random() * variants.length)];
+    var index = Math.floor(Math.random() * variants.length);
+    return { id: index, tpl: variants[index] };
   }
 
   /* ───────── DOM Refs ───────── */
@@ -109,6 +21,7 @@
     paperContent: document.getElementById("paper-content"),
     subject: document.getElementById("preview-subject"),
     body: document.getElementById("preview-body"),
+    shuffleBtn: document.getElementById("shuffle-btn"),
     sendBtn: document.getElementById("send-btn"),
     sendBtnText: document.querySelector(".send-btn__text"),
     sendBtnArrow: document.querySelector(".send-btn__arrow"),
@@ -137,6 +50,7 @@
 
   var selectedTone = null;
   var selectedMode = "anonymous"; // default
+  var selectedTemplateId = null;
   var isSending = false;
 
   /* ───────── Helpers ───────── */
@@ -192,17 +106,24 @@
 
   /* ───────── Apply Tone Template (random variant) ───────── */
   function applyTone(tone) {
-    var t = pickTemplate(tone);
+    var picked = pickTemplate(tone);
     var name = els.recipientName.value.trim();
-    if (!t || !name) return;
+    if (!picked || !name) return;
 
-    els.subject.value = t.subject.replace("{isim}", name);
-    els.body.value = t.body.replace(/\{isim\}/g, name);
+    selectedTemplateId = picked.id;
+    els.subject.value = picked.tpl.subject.replace("{isim}", name);
+    els.body.value = picked.tpl.body.replace(/\{isim\}/g, name);
 
     els.paperEmpty.hidden = true;
     els.paperContent.hidden = false;
 
     updateSendState();
+  }
+
+  if (els.shuffleBtn) {
+    els.shuffleBtn.addEventListener("click", function() {
+      if (selectedTone) applyTone(selectedTone);
+    });
   }
 
   /* ───────── Send State ───────── */
@@ -282,8 +203,7 @@
           senderName: senderName,
           tone: selectedTone,
           mode: selectedMode,
-          subject: els.subject.value,
-          body: els.body.value,
+          templateId: selectedTemplateId,
           spotifyLink: els.spotifyLink ? els.spotifyLink.value.trim() : "",
           consentGiven: els.consentTerms.checked && els.consentKvkk.checked
         })

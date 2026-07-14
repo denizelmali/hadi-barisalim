@@ -201,100 +201,7 @@ transporter.verify().then(() => {
 });
 
 /* ───────── Message Templates (Multiple per tone) ───────── */
-const templates = {
-  duygusal: [
-    {
-      subject: "Sana içimden geldiği gibi yazıyorum, {isim}",
-      body:
-        "Sevgili {isim},\n\n" +
-        "Bu satırları yazarken elimin biraz titrediğini itiraf etmeliyim. Aramızdaki bu sessizliğin içinde bile seni düşünmeden geçen bir gün olmadı. Birlikte güldüğümüz anları, en sıradan günleri bile özel kılan o hâli çok özledim.\n\n" +
-        "Belki bazı şeyleri doğru söyleyemedim, belki bazı anları kaçırdım. Ama şunu bilmeni isterim: sana duyduğum sevgi hâlâ burada, tam da bıraktığımız yerde duruyor.\n\n" +
-        "Sadece konuşabilir miyiz? Karşılıklı, sakince, kalbimizi ortaya koyarak. Cevabın ne olursa olsun, bunu sana söylemem gerekiyordu.\n\n" +
-        "Seni düşünüyorum.",
-    },
-    {
-      subject: "Bazı şeyler söylenmeden kalmamalı, {isim}",
-      body:
-        "Canım {isim},\n\n" +
-        "Bu mesajı kaç kere yazmaya başlayıp sildiğimi bilsen… Ama artık içimde tutamıyorum. Seninle geçirdiğimiz her an, her kahkaha, her sessizlik bile benim için anlam taşıyordu.\n\n" +
-        "Şu an aramızda ne varsa — kırgınlık mı, yanlış anlama mı, bıkkınlık mı — bunların hiçbiri sana olan sevgimi silmeye yetmedi. Ve sanırım hiçbir zaman yetemeyecek.\n\n" +
-        "Senden tek istediğim bir şans daha değil; sadece bir konuşma. Yüz yüze, gözlerinin içine bakarak, kalbimdekileri anlatmak istiyorum.\n\n" +
-        "Ne olursa olsun, sen benim için hep özel kalacaksın.",
-    },
-    {
-      subject: "Gece yine seni düşündüm, {isim}",
-      body:
-        "{isim},\n\n" +
-        "Gecenin bu saatinde yine aklıma geldin. Aslında gitmiyorsun ki aklımdan — hep oradasın. Birlikte yürüdüğümüz yolları, paylaştığımız bakışları, yarıda kalan cümlelerimizi düşünüyorum.\n\n" +
-        "İkimiz de mükemmel değildik. Belki de mükemmel olmaya çalışırken birbirimizi kaybettik. Ama sana şunu söyleyebilirim: hâlâ seninle aynı gökyüzüne baktığımda içim sızlıyor.\n\n" +
-        "Bu mektubu sana uzatılmış bir el olarak düşün. Tutmak senin elinde.\n\n" +
-        "Hâlâ buradayım.",
-    },
-  ],
-  sitemkar: [
-    {
-      subject: "İçimde kalanları sana anlatmam lazım, {isim}",
-      body:
-        "{isim},\n\n" +
-        "Bunu yazmak kolay olmadı, çünkü içimde hâlâ küçük bir sitem var. Bazı şeyleri konuşmadan bitirdik, bazı cümleler yarım kaldı. Sen gittikten sonra ben o yarım cümlelerle baş başa kaldım.\n\n" +
-        "Kırgınım, evet. Ama bu kırgınlığın altında hâlâ seni önemsediğim gerçeği duruyor. Keşke o son günlerde ikimiz de biraz daha sabırlı olabilseydik.\n\n" +
-        "Bunu bir suçlama olarak değil, içimi dökme ihtiyacı olarak oku. Belki hâlâ konuşacak şeylerimiz vardır.",
-    },
-    {
-      subject: "Bunu sana söylemem gerekiyordu, {isim}",
-      body:
-        "{isim},\n\n" +
-        "Uzun zamandır içimde biriktirdiğim şeyler var ve artık taşıyamıyorum. Beni tanıyorsun — kolay kolay sitem etmem, ama bu sefer farklı.\n\n" +
-        "Senin için orada olduğum zamanlarda, benim için orada olmadığını hissettim. Belki farkında değildin, belki farklı bir dönemindeydin. Ama o boşluk bende derin bir iz bıraktı.\n\n" +
-        "Yine de sana kızgın değilim — daha çok üzgünüm. Çünkü seninle olan ilişkimiz benim için gerçekten değerliydi. Hâlâ değerli.\n\n" +
-        "Bu satırları okuduktan sonra ne hissedeceğini bilemiyorum. Ama en azından bilmeni istedim.",
-    },
-    {
-      subject: "Bir şeyleri konuşmadan bırakmak istemiyorum, {isim}",
-      body:
-        "{isim},\n\n" +
-        "Biliyorum, belki bu mesajı beklemiyordun. Ama suskunluğumun arkasında \"her şey yolunda\" olmadığını anlamanı istiyorum.\n\n" +
-        "Seninle paylaştığımız güzel anların gölgesinde, beni inciten küçük ama biriken şeyler de vardı. Her seferinde \"geçer\" dedim, ama geçmedi. Biriktirdim ve sonunda aramıza mesafe koydum.\n\n" +
-        "Seni kaybetmek istemezdim, ama kendimi de kaybetmek istemiyordum. Belki şimdi, biraz zaman geçtikten sonra, ikimiz de daha net görebiliriz.\n\n" +
-        "Konuşmak istersen, kapım açık.",
-    },
-  ],
-  uzlasmaci: [
-    {
-      subject: "Bir adım atmak istiyorum, {isim}",
-      body:
-        "Merhaba {isim},\n\n" +
-        "Aramızda olanları uzun zamandır düşünüyorum ve kendi payıma düşen hataları artık daha net görebiliyorum. Seni suçlamak için değil, gerçekten bir şeyleri düzeltmek için yazıyorum.\n\n" +
-        "İkimiz de o süreci farklı yaşamış olabiliriz ama ben, geride bıraktığımız şeyin bir konuşmayı hak ettiğini düşünüyorum. İstersen kısa bir kahve molası, istersen sadece birkaç dakikalık bir telefon görüşmesi — sana nasıl uygunsa.\n\n" +
-        "Hazır olduğunda ben buradayım.",
-    },
-    {
-      subject: "Barışmak için geç değil diye düşünüyorum, {isim}",
-      body:
-        "Merhaba {isim},\n\n" +
-        "Bu mesajı yazmak için çok düşündüm, çünkü doğru kelimeleri bulmak istedim. Aramızdaki sorun ne olursa olsun, ikimizin de iyi niyetli olduğuna inanıyorum.\n\n" +
-        "Kendi hatalarımı görüyorum ve bunlarla yüzleşmeye hazırım. Senden tek beklentim bir fırsat — oturup sakin sakin konuşma fırsatı. Suçlama yok, yargılama yok, sadece dürüstlük.\n\n" +
-        "Eğer sen de hazırsan, bir çay/kahve içelim mi? Zamanlama ve yer tamamen sana kalmış.\n\n" +
-        "İyi dileklerimle.",
-    },
-    {
-      subject: "Seninle konuşmak istiyorum, {isim}",
-      body:
-        "Selam {isim},\n\n" +
-        "Bir süredir aramızdaki bu sessizliği düşünüyorum. İkimiz de belki inatlaştık, belki gururumuza yenildik. Ama sonuçta ikimiz de bundan mutlu değiliz — en azından ben değilim.\n\n" +
-        "Sorumluluk almaktan kaçınmıyorum. Nerede hata yaptıysam kabul ediyorum. Ve senden de aynısını istemiyorum bile — sadece konuşabilmemizi istiyorum.\n\n" +
-        "Hayat kısa, güzel insanlarla küs kalmak için çok kısa. Ne dersin, bir adım atalım mı?\n\n" +
-        "Seni düşünüyorum.",
-    },
-  ],
-};
-
-/* ───────── Random Template Picker ───────── */
-function pickTemplate(tone) {
-  const variants = templates[tone];
-  if (!variants || variants.length === 0) return null;
-  return variants[Math.floor(Math.random() * variants.length)];
-}
+const templates = require("./public/templates.js");
 
 /* ───────── Validation Helpers ───────── */
 function isValidEmail(email) {
@@ -314,8 +221,7 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     const senderName = sanitize(req.body.senderName, 100);
     const tone = sanitize(req.body.tone, 20);
     const mode = sanitize(req.body.mode, 10); // "anonymous" or "named"
-    const customSubject = sanitize(req.body.subject, 200);
-    const customBody = sanitize(req.body.body, 5000);
+    const templateId = req.body.templateId;
     const spotifyLink = sanitize(req.body.spotifyLink, 500);
 
     // Spotify link güvenlik doğrulaması
@@ -323,8 +229,8 @@ app.post("/api/send", sendLimiter, async (req, res) => {
       return res.status(400).json({ ok: false, error: "Geçersiz Spotify linki. Sadece open.spotify.com linkleri kabul edilir." });
     }
 
-    // Toksik İçerik / Küfür Filtresi Kontrolü
-    if (isToxic(customSubject) || isToxic(customBody) || isToxic(senderName) || isToxic(recipientName)) {
+    // Toksik İçerik / Küfür Filtresi Kontrolü (Sadece isimler için)
+    if (isToxic(senderName) || isToxic(recipientName)) {
       return res.status(400).json({ 
         ok: false, 
         error: "Mesajınız topluluk kurallarımıza (hakaret/nefret söylemi) aykırı içerik barındırdığı için gönderilemedi." 
@@ -341,6 +247,9 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     if (!tone || !templates[tone] || templates[tone].length === 0) {
       return res.status(400).json({ ok: false, error: "Geçerli bir ton seçin." });
     }
+    if (templateId === undefined || templateId < 0 || templateId >= templates[tone].length) {
+      return res.status(400).json({ ok: false, error: "Geçersiz taslak seçimi." });
+    }
     if (!mode || !["anonymous", "named"].includes(mode)) {
       return res.status(400).json({ ok: false, error: "Gönderim modu seçin." });
     }
@@ -348,10 +257,10 @@ app.post("/api/send", sendLimiter, async (req, res) => {
       return res.status(400).json({ ok: false, error: "Lütfen Yasal İzinleri onaylayın." });
     }
 
-    // Build the message (pick random template variant)
-    const tpl = pickTemplate(tone);
-    const subject = customSubject || tpl.subject.replace("{isim}", recipientName);
-    let body = customBody || tpl.body.replace(/\{isim\}/g, recipientName);
+    // Build the message (from server-side template)
+    const tpl = templates[tone][templateId];
+    const subject = tpl.subject.replace("{isim}", recipientName);
+    let body = tpl.body.replace(/\{isim\}/g, recipientName);
 
     // Add signature for named mode
     if (mode === "named" && senderName) {

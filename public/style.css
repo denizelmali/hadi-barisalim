@@ -991,6 +991,51 @@ a { color: inherit; }
   border: 1px solid rgba(255, 99, 71, 0.2);
 }
 
+/* ---------- Shuffle Button ---------- */
+.paper__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.shuffle-btn {
+  background: rgba(201, 161, 91, 0.1);
+  color: var(--gold);
+  border: 1px solid rgba(201, 161, 91, 0.3);
+  padding: 0.5rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.shuffle-btn:hover {
+  background: rgba(201, 161, 91, 0.2);
+  border-color: var(--gold);
+  transform: translateY(-1px);
+}
+
+.shuffle-btn svg {
+  transition: transform 0.3s ease;
+}
+.shuffle-btn:active svg {
+  transform: rotate(180deg);
+}
+
+.paper__subject[readonly],
+.paper__body[readonly] {
+  background-color: transparent;
+  cursor: default;
+}
+.paper__subject[readonly]:focus,
+.paper__body[readonly]:focus {
+  outline: none;
+}
+
 /* ---------- Responsive ---------- */
 
 @media (max-width: 640px) {

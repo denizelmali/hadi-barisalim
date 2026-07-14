@@ -1,11 +1,11 @@
-async function testModeration(bodyText) {
+async function testModeration(senderName, recipientName, templateId) {
   const payload = {
-    recipientName: "Ahmet",
+    recipientName: recipientName,
     recipientEmail: "test@example.com",
-    senderName: "Mehmet",
+    senderName: senderName,
     tone: "duygusal",
     mode: "named",
-    body: bodyText,
+    templateId: templateId,
     consentGiven: true
   };
 
@@ -16,17 +16,15 @@ async function testModeration(bodyText) {
   });
   
   const data = await res.json();
-  console.log(`Test Metni: "${bodyText}"`);
+  console.log(`Test: Sender: "${senderName}", Recipient: "${recipientName}", Template: ${templateId}`);
   console.log(`Sonuç: ${data.ok ? 'Başarılı (Geçti)' : 'Engellendi - ' + data.error}\n`);
 }
 
 async function runTests() {
-  await testModeration("Seni çok özledim, lütfen barışalım.");
-  await testModeration("seni s.i.k.e.r.i.m anladın mı beni");
-  await testModeration("o. r o . s  p.   u  çocuğu");
-  await testModeration("sen tam bir amk salagisin");
-  await testModeration("g.a.v.a.t mısın oğlum sen?");
-  await testModeration("zaman çok hızlı geçiyor ama seni unutamıyorum."); // False positive test for "am"
+  await testModeration("Mehmet", "Ayşe", 0); // Normal isimler
+  await testModeration("amk mehmet", "Ayşe", 1); // Gönderen isminde küfür
+  await testModeration("Mehmet", "o.ç Ayşe", 2); // Alıcı isminde küfür
+  await testModeration("Mehmet", "Ayşe", 9); // Normal
 }
 
 runTests();
