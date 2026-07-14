@@ -398,11 +398,34 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
 </html>`;
 }
 
+/* ───────── Tracking Helper ───────── */
+const trackingIdRegex = /^HB-[A-F0-9]{8}$/i;
+
 /* ───────── API: Tracking Pixel ───────── */
 app.get("/api/track/:id/pixel.gif", async (req, res) => {
   const id = req.params.id;
   const userAgent = (req.headers["user-agent"] || "").toLowerCase();
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
+  // 1x1 transparent GIF Buffer
+  const pixel = Buffer.from(
+    "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
+    "base64"
+  );
+
+  // Set headers early
+  res.writeHead(200, {
+    "Content-Type": "image/gif",
+    "Content-Length": pixel.length,
+    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    "Pragma": "no-cache",
+    "Expires": "0",
+  });
+
+  // Regex doğrulama ile geçersiz formatlar DB'yi yormaz (Performans & Güvenlik)
+  if (!trackingIdRegex.test(id)) {
+    return res.end(pixel);
+  }
 
   try {
     const letter = await Letter.findOne({ trackingId: id });
@@ -429,18 +452,6 @@ app.get("/api/track/:id/pixel.gif", async (req, res) => {
     console.error("Tracking pixel DB hatası:", err);
   }
 
-  // 1x1 transparent GIF
-  const pixel = Buffer.from(
-    "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
-    "base64"
-  );
-  res.writeHead(200, {
-    "Content-Type": "image/gif",
-    "Content-Length": pixel.length,
-    "Cache-Control": "no-store, no-cache, must-revalidate, private",
-    "Pragma": "no-cache",
-    "Expires": "0",
-  });
   res.end(pixel);
 });
 
@@ -448,6 +459,12 @@ app.get("/api/track/:id/pixel.gif", async (req, res) => {
 app.get("/api/track/:id", async (req, res) => {
   try {
     const id = req.params.id;
+
+    // Regex doğrulama
+    if (!trackingIdRegex.test(id)) {
+      return res.status(404).json({ ok: false, error: "Mektup bulunamadı." });
+    }
+
     const letter = await Letter.findOne({ trackingId: id });
 
     if (!letter) {
