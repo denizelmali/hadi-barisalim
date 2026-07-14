@@ -247,8 +247,8 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     if (!tone || !templates[tone] || templates[tone].length === 0) {
       return res.status(400).json({ ok: false, error: "Geçerli bir ton seçin." });
     }
-    if (templateId === undefined || templateId < 0 || templateId >= templates[tone].length) {
-      return res.status(400).json({ ok: false, error: "Geçersiz taslak seçimi." });
+    if (templateId === undefined || templateId === null || typeof templateId !== "number" || templateId < 0 || templateId >= templates[tone].length) {
+      return res.status(400).json({ ok: false, error: "Geçersiz taslak seçimi. Lütfen sayfayı CTRL+F5 ile yenileyerek tekrar deneyin." });
     }
     if (!mode || !["anonymous", "named"].includes(mode)) {
       return res.status(400).json({ ok: false, error: "Gönderim modu seçin." });
