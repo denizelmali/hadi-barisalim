@@ -399,7 +399,8 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
 }
 
 /* ───────── Tracking Helper ───────── */
-const trackingIdRegex = /^HB-[A-F0-9]{8}$/i;
+// Eski kodlar 4 karakterliydi (HB-XXXX), yeniler 8 karakterli (HB-XXXXXXXX). İkisini de destekle:
+const trackingIdRegex = /^HB-([A-F0-9]{4}|[A-F0-9]{8})$/i;
 
 /* ───────── API: Tracking Pixel ───────── */
 app.get("/api/track/:id/pixel.gif", async (req, res) => {
