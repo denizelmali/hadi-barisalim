@@ -29,11 +29,34 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   background: var(--ink);
+  background-image: 
+    radial-gradient(circle at 10% 0%, rgba(42, 30, 44, 0.8) 0%, transparent 50%),
+    radial-gradient(circle at 90% 100%, rgba(60, 45, 62, 0.4) 0%, transparent 50%);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Dinamik ambiyans aydınlatması (Premium hissi) */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: 
+    radial-gradient(circle at 25% 75%, rgba(201, 161, 91, 0.08), transparent 40%),
+    radial-gradient(circle at 75% 25%, rgba(227, 175, 176, 0.06), transparent 40%);
+  pointer-events: none;
+  z-index: -1;
+  animation: ambient-pulse 15s ease-in-out infinite alternate;
+}
+
+@keyframes ambient-pulse {
+  0% { transform: scale(1) translate(0px, 0px); }
+  50% { transform: scale(1.1) translate(2vw, -1vh); }
+  100% { transform: scale(1) translate(-1vw, 2vh); }
 }
 
 img, svg { display: block; max-width: 100%; }
