@@ -324,7 +324,7 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     console.error("Mail gönderim hatası:", err);
     return res.status(500).json({
       ok: false,
-      error: "Mail gönderilemedi. Lütfen daha sonra tekrar deneyin.",
+      error: "Mail gönderilemedi. Lütfen daha sonra tekrar deneyin. [Hata Detayı: " + err.message + "]",
     });
   }
 });
