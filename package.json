@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "build:css": "npx -y clean-css-cli -o public/style.min.css public/style.css",
+    "build:js": "npx -y terser public/script.js -o public/script.min.js -c -m",
+    "build": "npm run build:css && npm run build:js",
+    "postinstall": "echo 'Run npm run build for production minification'"
   },
   "dependencies": {
     "compression": "^1.8.1",

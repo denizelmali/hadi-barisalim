@@ -759,8 +759,10 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .hero { animation: none; }
+  body::before { animation: none; }
   .tone-card, .send-btn, .field input, .mode-card { transition: none; }
   .success-card, .success-card__icon { animation: none; }
+  .animation-overlay .envelope, .animation-overlay .envelope-flap, .animation-overlay .envelope-heart { animation: none; }
 }
 
 /* ---------- Tracking & Spotify ---------- */

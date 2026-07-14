@@ -52,6 +52,20 @@
   var selectedMode = "anonymous"; // default
   var selectedTemplateId = null;
   var isSending = false;
+  var csrfToken = null; // CSRF token sunucudan alınacak
+
+  /* ───────── CSRF Token ───────── */
+  async function fetchCsrfToken() {
+    try {
+      var response = await fetch("/api/csrf-token");
+      var data = await response.json();
+      if (data.ok) csrfToken = data.token;
+    } catch (err) {
+      console.warn("CSRF token alınamadı, yeniden denenecek.");
+    }
+  }
+  // Sayfa yüklenince token al
+  fetchCsrfToken();
 
   /* ───────── Helpers ───────── */
   function hasName() {
@@ -230,7 +244,8 @@
           templateId: selectedTemplateId,
           spotifyLink: els.spotifyLink ? els.spotifyLink.value.trim() : "",
           consentGiven: els.consentTerms.checked && els.consentKvkk.checked,
-          website: document.getElementById("honeypot") ? document.getElementById("honeypot").value : ""
+          website: document.getElementById("honeypot") ? document.getElementById("honeypot").value : "",
+          _csrf: csrfToken
         })
       });
 
@@ -275,6 +290,8 @@
       els.sendBtnArrow.hidden = false;
       els.sendBtnSpinner.hidden = true;
       updateSendState();
+      // Her gönderimden sonra yeni CSRF token al (tek kullanımlık)
+      fetchCsrfToken();
     }
   });
 

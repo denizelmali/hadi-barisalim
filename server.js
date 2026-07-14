@@ -12,19 +12,51 @@ const { isToxic } = require("./utils/moderation");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+/* ───────── CSRF Token Sistemi ───────── */
+const csrfTokens = new Map(); // token -> { createdAt, ip }
+const CSRF_TOKEN_EXPIRY = 30 * 60 * 1000; // 30 dakika
+
+function generateCsrfToken(ip) {
+  const token = crypto.randomBytes(32).toString("hex");
+  csrfTokens.set(token, { createdAt: Date.now(), ip });
+  return token;
+}
+
+function validateCsrfToken(token, ip) {
+  const data = csrfTokens.get(token);
+  if (!data) return false;
+  // Token'ı bir kere kullanıldıktan sonra sil (replay attack önlemi)
+  csrfTokens.delete(token);
+  // Süre aşımı kontrolü
+  if (Date.now() - data.createdAt > CSRF_TOKEN_EXPIRY) return false;
+  return true;
+}
+
+// Eski token'ları periyodik temizle (memory leak önlemi)
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of csrfTokens.entries()) {
+    if (now - data.createdAt > CSRF_TOKEN_EXPIRY) {
+      csrfTokens.delete(token);
+    }
+  }
+}, 10 * 60 * 1000); // 10 dakikada bir temizlik
+
 /* ───────── Deneme Modu ─────────
    true  = Rate limiting KAPALI (test aşaması)
    false = Rate limiting AKTİF  (production)
    Production'a geçince bu değeri false yapın veya .env'ye DENEME_MODU=false ekleyin.
 ───────────────────────────────── */
-const DENEME_MODU = process.env.DENEME_MODU !== "false"; // varsayılan: true (test modu)
+const DENEME_MODU = process.env.DENEME_MODU === "true"; // varsayılan: false (güvenli — production-ready)
 
 /* ───────── Database Setup (MongoDB + Vercel Connection Caching) ───────── */
 let isDbConnected = false;
 
 const MONGO_OPTIONS = {
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 8000,
+  socketTimeoutMS: 15000,
+  maxPoolSize: 10,
+  minPoolSize: 1,
 };
 
 // MongoDB bağlantı fonksiyonu — SRV başarısız olursa fallback URI'ye geçer
@@ -90,6 +122,13 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+/* ───────── E-posta Header Injection Koruması ───────── */
+function sanitizeEmailHeader(str) {
+  if (typeof str !== "string") return "";
+  // Newline, carriage return, tırnak ve köşeli parantezleri temizle
+  return str.replace(/["<>\r\n\\]/g, "").trim();
+}
+
 /* ───────── Spotify URL Doğrulama ───────── */
 function isValidSpotifyUrl(url) {
   if (!url) return true; // Boş ise sorun yok, opsiyonel alan
@@ -119,7 +158,10 @@ app.use(
 app.use(compression()); // Gzip sıkıştırması
 app.use(express.json({ limit: "10kb" }));
 app.use(express.static(path.join(__dirname, "public"), {
-  maxAge: "1d"
+  maxAge: "7d",
+  immutable: false,
+  etag: true,
+  lastModified: true
 }));
 
 /* ───────── CORS Koruması ───────── */
@@ -214,8 +256,21 @@ function sanitize(str, maxLen) {
 }
 
 /* ───────── API: Send Mail ───────── */
+/* ───────── API: CSRF Token Endpoint ───────── */
+app.get("/api/csrf-token", (req, res) => {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+  const token = generateCsrfToken(ip);
+  res.json({ ok: true, token });
+});
+
 app.post("/api/send", sendLimiter, async (req, res) => {
   try {
+    // CSRF Token doğrulaması
+    const csrfToken = req.body._csrf || req.headers["x-csrf-token"];
+    const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    if (!csrfToken || !validateCsrfToken(csrfToken, clientIp)) {
+      return res.status(403).json({ ok: false, error: "Güvenlik doğrulaması başarısız. Lütfen sayfayı yenileyip tekrar deneyin." });
+    }
     const recipientName = sanitize(req.body.recipientName, 100);
     const recipientEmail = sanitize(req.body.recipientEmail, 254);
     const senderName = sanitize(req.body.senderName, 100);
@@ -275,9 +330,11 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     }
 
     // Determine sender display name
-    const fromName = mode === "named" && senderName
-      ? senderName
-      : process.env.SMTP_FROM_NAME || "Hadi Barışalım";
+    const fromName = sanitizeEmailHeader(
+      mode === "named" && senderName
+        ? senderName
+        : process.env.SMTP_FROM_NAME || "Hadi Barışalım"
+    );
 
     const fromEmail = process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER;
 
@@ -331,7 +388,7 @@ app.post("/api/send", sendLimiter, async (req, res) => {
     console.error("Mail gönderim hatası:", err);
     return res.status(500).json({
       ok: false,
-      error: "Mail gönderilemedi. Lütfen daha sonra tekrar deneyin. [Hata Detayı: " + err.message + "]",
+      error: "Mail gönderilemedi. Lütfen daha sonra tekrar deneyin.",
     });
   }
 });
@@ -500,9 +557,12 @@ app.get("/api/health", (_req, res) => {
 
 /* ───────── API: Migrate Legacy Data (Secret Key ile korumalı) ───────── */
 app.get("/api/migrate", async (req, res) => {
-  // Güvenlik: Sadece doğru secret key ile çalışır
+  // Güvenlik: Sadece .env'de tanımlı secret key ile çalışır — hardcoded fallback YOK
   const secret = req.query.key || req.headers["x-migrate-key"];
-  if (!secret || secret !== (process.env.MIGRATE_SECRET || "hb-migrate-2026")) {
+  if (!process.env.MIGRATE_SECRET) {
+    return res.status(503).json({ ok: false, error: "Migration devre dışı. MIGRATE_SECRET tanımlı değil." });
+  }
+  if (!secret || secret !== process.env.MIGRATE_SECRET) {
     return res.status(403).json({ ok: false, error: "Yetkisiz erişim." });
   }
 
@@ -524,8 +584,23 @@ app.get("/api/migrate", async (req, res) => {
     }
     return res.json({ ok: false, message: "No legacy data found." });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    console.error("Migration hatası:", err);
+    res.status(500).json({ ok: false, error: "Migration sırasında hata oluştu." });
   }
+});
+
+/* ───────── 404 Handler ───────── */
+app.use((req, res) => {
+  // API rotaları için JSON 404
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ ok: false, error: "Endpoint bulunamadı." });
+  }
+  // Diğer rotalar için 404 sayfası
+  res.status(404).sendFile(path.join(__dirname, "public", "404.html"), (err) => {
+    if (err) {
+      res.status(404).send("Sayfa bulunamadı.");
+    }
+  });
 });
 
 /* ───────── Start ───────── */

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E1520"/>
+      <stop offset="100%" style="stop-color:#2A1E2C"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E7C685"/>
+      <stop offset="100%" style="stop-color:#C9A15B"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- Envelope body -->
+  <rect x="12" y="22" width="40" height="26" rx="3" fill="url(#gold)" opacity="0.9"/>
+  <!-- Envelope flap -->
+  <polygon points="12,22 32,38 52,22" fill="#E7C685" opacity="0.95"/>
+  <!-- Envelope bottom fold lines -->
+  <polygon points="12,48 32,36 52,48" fill="#B8943F" opacity="0.3"/>
+  <!-- Heart -->
+  <g transform="translate(32,30)" fill="#E3AFB0">
+    <path d="M0-3.5C0-5.5-2-7-4-7S-8-5.5-8-3.5C-8 1 0 6 0 6S8 1 8-3.5C8-5.5 6-7 4-7S0-5.5 0-3.5Z" transform="scale(0.55)"/>
+  </g>
+</svg>
