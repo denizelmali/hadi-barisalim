@@ -332,6 +332,10 @@ a { color: inherit; }
   font-family: var(--font-body);
 }
 
+.tone-card--full {
+  grid-column: span 2;
+}
+
 .tone-card__mark {
   font-family: var(--font-display);
   font-size: 1.3rem;
@@ -1132,6 +1136,7 @@ a { color: inherit; }
   .hero { padding: 3.6rem 1.25rem 2.6rem; }
   .field-row { grid-template-columns: 1fr; }
   .tone-grid { grid-template-columns: 1fr; }
+  .tone-card--full { grid-column: span 1; }
   .mode-switcher { grid-template-columns: 1fr; }
   .paper { padding: 1.4rem 1.2rem 2.2rem; }
   .sheet { padding: 0 1.25rem 1.5rem; }

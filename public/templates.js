@@ -48,6 +48,26 @@
       {
         subject: "Son bir şans için, {isim}",
         body: "{isim},\n\nBelki bu mektubu okuduğunda yüzünde hafif bir tebessüm olur, belki de derin bir iç çekersin. Sadece bilmeni isterim ki, ben seni hiç unutmadım.\n\nHatalarımı gördüm, sensizliğin ne demek olduğunu acı bir şekilde anladım. Şimdi senden tek ricam, geçmişi geçmişte bırakıp, yepyeni bir 'biz' için bana küçük de olsa bir fırsat vermen.\n\nSeni tüm kalbimle bekliyor olacağım."
+      },
+      {
+        subject: "Biraz zaman geçti ama... {isim}",
+        body: "Sevgili {isim},\n\nAradan ne kadar zaman geçerse geçsin, bazı hislerin üzeri tozlanmıyormuş. Seninle paylaştığımız anların, küçük detayların aklıma gelmediği bir gün bile yok.\n\nHatalarım olduysa veya seni istemeden kırdıysam, kalbimden özür dilerim. İçimde sadece sana dair güzel hatıralar ve büyük bir özlem var.\n\nEğer istersen, sadece sesini duymak bana çok iyi gelirdi."
+      },
+      {
+        subject: "İçimde kalanlar var, {isim}",
+        body: "{isim},\n\nSana yazıp yazmamak konusunda kendimle çok savaştım ama artık içimde tutmak istemiyorum. Belki her şey için çok geçtir ama bilmeni isterim ki; kalbimde bıraktığın boşluğu kimse dolduramadı.\n\nİkimizin de bir şeyleri farklı yapabileceği anlar oldu. Keşkelerle yaşamak yerine sana sadece dürüst olmak istedim.\n\nUmarım iyisindir."
+      },
+      {
+        subject: "Hatıralar bırakmıyor peşimi, {isim}",
+        body: "Canım {isim},\n\nBugün eski fotoğraflara bakarken buldum kendimi. Yüzümüzdeki o sahici gülümsemeyi, o anki mutluluğumuzu hatırlamak beni darmadağın etti.\n\nNe yaşandıysa yaşandı, ama benim kalbimdeki o özel yerin hiç değişmedi. Belki bir gün o eski fotoğraflardaki gibi yeniden gülebiliriz.\n\nSeni çok özledim."
+      },
+      {
+        subject: "Kalbimden geçenleri bil istedim, {isim}",
+        body: "Sevgili {isim},\n\nUzun sessizliğimizin ardından bu maili görünce şaşırabilirsin. Sadece şunu bilmeni istiyorum: hayat telaşı içinde bile kalbim sana takılıp kalıyor.\n\nGeriye dönüp baktığımda kırgınlıklardan ziyade sadece senin o güzel gülüşünü hatırlıyorum. Biliyorum her şey bir anda düzelmez ama bir adım atmak istedim.\n\nBeni anlarsın umarım."
+      },
+      {
+        subject: "Sadece seni düşünüyordum, {isim}",
+        body: "{isim},\n\nHiçbir özel gün veya mazeret yok. Sadece içimden geldiği için yazıyorum çünkü seni gerçekten çok özledim.\n\nAramızda geçen olumsuz her ne varsa, onlardan arınmış bir şekilde karşında durduğumu bilmeni isterim. Saf bir sevgiyle, sadece seni anlamak ve dinlemek için...\n\nEğer bir şansımız daha varsa, o şansı denemek istiyorum."
       }
     ],
     sitemkar: [
@@ -90,6 +110,26 @@
       {
         subject: "Belki de böylesi daha iyiydi... {isim}",
         body: "{isim},\n\nHer bitiş yeni bir başlangıçtır derler. Ama benim için bu bitiş, içimde koca bir soru işareti bıraktı.\n\nNeden onca güzel anı varken, bir anda birbirimize bu kadar düşman olduk? Benim sana kızgınlığım geçici, ama içimdeki o kırıklık hep kalacak gibi.\n\nSana kızamıyorum bile artık. Eğer bir gün gerçekten neyi kaybettiğimizi anlarsan, belki o zaman aynı dili konuşabiliriz."
+      },
+      {
+        subject: "Biraz düşününce, {isim}...",
+        body: "Merhaba {isim},\n\nGeçen onca zamanın ardından aramızdaki sessizliğin ne kadar anlamsız olduğunu düşünüyorum. İkimiz de bu kadar kolay pes etmemeliydik.\n\nSana kızgın olmaktan çok kırgınım. Konuşarak çözebileceğimiz onca şey varken, susmayı seçmek bizi bu noktaya getirdi. \n\nEğer o duvarları aşmaya niyetin varsa, ben buradayım."
+      },
+      {
+        subject: "Bize bunu neden yaptık, {isim}?",
+        body: "Selam {isim},\n\nİçimdeki sesi ne kadar susturmaya çalışsam da başaramıyorum. Ortada çözülemeyecek hiçbir şey yokken, bu kadar uzak düşmemiz bana haksızlık gibi geliyor.\n\nBelki sen her şeyi geride bıraktın, belki de benim gibi içinde bir yerlerde hala o ukdeyi taşıyorsun. Ben sadece bu anlamsız kopuşu kabullenemiyorum.\n\nBana söyleyecek bir sözün varsa, duymaya hazırım."
+      },
+      {
+        subject: "Konuşulmamış çok şey var, {isim}",
+        body: "{isim},\n\nBazen düşünüyorum da, ikimiz de içimizdekileri tam olarak birbirimize anlatamadık. Gururumuz yüzünden aslında çoktan hallolacak bir mevzuyu büyüttük.\n\nBu sessizlik bana iyi gelmiyor, sana da iyi geldiğini sanmıyorum. Kırgınlıkları bir kenara bırakıp sadece dürüstçe yüzleşmemiz gerekmiyor mu?\n\nCevabını bekliyorum."
+      },
+      {
+        subject: "Böyle bitmemeliydi, {isim}",
+        body: "Merhaba {isim},\n\nHer şeyin bu şekilde havada asılı kalması beni gerçekten üzüyor. İkimizin arasındaki o bağın, birkaç kötü cümleyle kopup gitmesine izin vermemeliydik.\n\nBenden veya senden kaynaklanan hatalar olabilir. Ama önemli olan bunlardan ders çıkarıp iletişim kurabilmekti.\n\nEğer sen de bir şeylerin eksik kaldığını düşünüyorsan, konuşalım."
+      },
+      {
+        subject: "Sessizlik en kötü cevapmış, {isim}",
+        body: "{isim},\n\nBana ne kızdın, ne bağırdın... Sadece sessiz kaldın. Ve inan bana bu her şeyden daha çok yaraladı beni.\n\nBen sorunları halının altına süpürmek istemiyorum. Açıkça, dürüstçe her şeyi konuşmak ve ne olacaksa ondan sonra olmasını istiyorum.\n\nSenden sadece biraz dürüstlük bekliyorum."
       }
     ],
     uzlasmaci: [
@@ -132,6 +172,26 @@
       {
         subject: "Özür dilerim ve çok özledim, {isim}",
         body: "Canım {isim},\n\nLafı hiç dolandırmadan söyleyeceğim: Nerede yanlış yaptıysam özür dilerim. Haklı çıkmaktan çok, seninle yeniden iyi olmaya ihtiyacım var.\n\nAramızdaki bu soğuk savaş artık bitsin istiyorum. Çünkü sensizlik beklediğimden çok daha zor ve anlamsızmış.\n\nLütfen bu mesajımı bir zayıflık değil, sana verdiğim değerin bir göstergesi olarak kabul et. Seni seviyorum."
+      },
+      {
+        subject: "Sorunları geride bırakalım, {isim}",
+        body: "Merhaba {isim},\n\nBen artık kimin haklı kimin haksız olduğunu düşünmekten yoruldum. Ortada tek bir gerçek var: Seninle aramın kötü olması beni üzüyor.\n\nGel bu anlamsız inatlaşmayı bir kenara bırakalım. Geçmişi deşmek yerine, yepyeni ve tertemiz bir başlangıç yapalım.\n\nElin hala havadaysa, ben tutmaya hazırım."
+      },
+      {
+        subject: "Sadece seni dinlemek istiyorum, {isim}",
+        body: "Selam {isim},\n\nBu mektubu sana tamamen ön yargılarımdan arınmış olarak yazıyorum. Seni gerçekten anlamak, olaylara senin pencerenden bakmak istiyorum.\n\nSavunma yapmadan, haklı çıkmaya çalışmadan, sadece senin hissettiklerini dinlemeye hazırım. Çünkü sen benim için bu tartısmalardan çok daha değerlisin.\n\nKahveler benden, ne dersin?"
+      },
+      {
+        subject: "Ortak bir yol bulabiliriz, {isim}",
+        body: "Sevgili {isim},\n\nFarklı düşünüyor olabiliriz, bazen anlaşamıyor da olabiliriz. Ama bu bizim birbirimize olan saygımızı ve değerimizi bitirmemeli.\n\nİkimizin de beklentilerini karşılayacak ortak bir zemin bulabileceğimize inanıyorum. Sadece biraz sabır ve karşılıklı anlayışa ihtiyacımız var.\n\nHadi gel, bunu birlikte çözelim."
+      },
+      {
+        subject: "Barış çubuğunu uzatıyorum, {isim}",
+        body: "{isim},\n\nAramızdaki buzların artık erimesi gerektiğine inanıyorum. Bu kırgınlık ikimize de hiçbir şey kazandırmıyor, aksine sadece yoruyor.\n\nBen kendi adımımı atıyor ve sana zeytin dalı uzatıyorum. Senden tek ricam, bu çabama aynı samimiyetle karşılık vermen.\n\nYeniden eski güzel günlerdeki gibi olalım."
+      },
+      {
+        subject: "Affetmek büyüklüktür, {isim}",
+        body: "Merhaba {isim},\n\nİkimiz de hatalar yaptık, birbirimizi istemeden kırdık. Ama affetmenin, kırgınlıkları aşmanın bizi daha da güçlendireceğini düşünüyorum.\n\nBen seni affettim ve kendi hatalarım için de senin affına sığınıyorum. Artık kalbimizde bu yüke yer olmasın.\n\nTemiz bir sayfa açmak için senden haber bekliyorum."
       }
     ],
     dogum_gunu: [
@@ -174,6 +234,88 @@
       {
         subject: "Her şeye rağmen iyi ki doğdun, {isim}",
         body: "{isim},\n\nHayat çok garip değil mi? Eskiden en yakınındayken şimdi bir maille kutluyorum doğum gününü. Ama inanki içimdeki iyi niyet ilk günkü kadar taze.\n\nLütfen her zaman çok mutlu ol. Güzelliklerin seni bulacağı, harika bir yaş diliyorum.\n\nDoğum günün kutlu olsun."
+      },
+      {
+        subject: "Bir yaş daha büyüdün, {isim}",
+        body: "Sevgili {isim},\n\nZaman ne kadar çabuk geçiyor... Bugün senin hayatındaki yeni bir döngünün başlangıcı. Belki yan yana değiliz ama bil ki iyi dileklerim her zaman seninle.\n\nHayat sana her zaman en güzel yüzünü göstersin. Tüm hayallerinin gerçeğe dönüştüğü, sağlık dolu, harika bir yaş dilerim.\n\nDoğum günün kutlu olsun!"
+      },
+      {
+        subject: "İyi ki doğdun, iyi ki tanımışım seni {isim}",
+        body: "Merhaba {isim},\n\nBazı insanlar hayata girdiği anı güzelleştirir. Sen de benim hayatımdaki o özel insanlardan birisin. \n\nAramızda şu an ne olduğu önemli değil, önemli olan senin bugün mutlu olman. Yüzünden o güzel gülüşün hiç eksik olmasın.\n\nMutlu yıllar dilerim, kendine hep çok iyi bak."
+      },
+      {
+        subject: "Bugün dilek tutma sırası sende, {isim}",
+        body: "Selam {isim},\n\nBugün mumları üflerken tuttuğun tüm dileklerin en kısa sürede gerçekleşmesini dilerim. Eski günlerdeki gibi yan yana olmasak da, bu özel gününü içtenlikle kutlamak istedim.\n\nYeni yaşın sana umut, huzur ve bolca şans getirsin. Sen her şeyin en güzeline layıksın.\n\nDoğum günün kutlu olsun."
+      },
+      {
+        subject: "Unutmadım, iyi ki doğdun {isim}",
+        body: "{isim},\n\nTakvim yaprakları bugünü gösterdiğinde aklıma direkt sen geldin. Yaşananları bir kenara bırakıp, sadece senin iyiliğini ve mutluluğunu dileyerek yazıyorum bunu.\n\nUmarım hayatın boyunca karşına hep senin gibi güzel kalpli insanlar çıkar. Yeni yaşın sana uğur getirsin.\n\nİyi ki doğdun."
+      },
+      {
+        subject: "Sadece tebrik etmek istedim, {isim}",
+        body: "Merhaba {isim},\n\nSadece bu özel gününde kısa bir mesajla yanında olduğumu hissettirmek istedim. \n\nUmarım bugün sevdiklerinle beraber, tam da hayal ettiğin gibi bir doğum günü geçiriyorsundur. Yeni yaşın sana tüm güzellikleri beraberinde getirsin.\n\nMutlu yaşlar."
+      }
+    ],
+    arkadasca: [
+      {
+        subject: "Eski dostluklar unutulmaz, {isim}",
+        body: "Merhaba {isim},\n\nSon zamanlarda aklıma eski günlerimiz, o içten sohbetlerimiz geliyor. Bir şekilde yollarımız ayrıldı veya aramıza mesafeler girdi, ama ben o dostluğun değerini hiç unutmadım.\n\nSevgili olarak yürütmemiş olabiliriz, ya da bazı şeyleri aşamamış olabiliriz ama bence bizim çok değerli bir arkadaşlık bağımız var. Küs kalmak ikimize de yakışmıyor.\n\nİstersen bir ara kahve içip sadece iki iyi arkadaş gibi dertleşelim. Ne dersin?"
+      },
+      {
+        subject: "Arkadaş kalabilmek bence çok değerli, {isim}",
+        body: "Selam {isim},\n\nYaşadığımız onca şeyden sonra bu mesajı atmak kolay olmadı. Ama düşündüm de, senin gibi iyi bir insanı hayatımdan tamamen çıkarmak bana çok yanlış geliyor.\n\nAramızdaki eski problemleri, ilişki dinamiklerini bir kenara bırakıp sadece arkadaş olarak iletişimde kalabileceğimizi düşünüyorum. Çünkü senin sohbetini gerçekten özledim.\n\nEğer sen de aynı fikirdeysen, haber ver."
+      },
+      {
+        subject: "Düşman olmak zorunda değiliz, {isim}",
+        body: "{isim},\n\nİnsanlar ayrıldıklarında ya da uzaklaştıklarında genelde düşman gibi olurlar. Ben bizim bu klişeye düşmememiz gerektiğine inanıyorum.\n\nBiz birbirini iyi tanıyan, zor zamanlarda yanında olmuş iki insanız. Tüm o gerginlikleri geçmişte bırakıp, yeniden sadece hal hatır soran iyi iki dost olamaz mıyız?\n\nBenim sana karşı hiçbir kırgınlığım kalmadı. Umarım senin de kalmamıştır."
+      },
+      {
+        subject: "Sadece halini hatırını sormak istedim, {isim}",
+        body: "Merhaba {isim},\n\nUmarım iyisindir. Hayat koşturmacasında aklıma geldin ve sadece nasıl olduğunu sormak istedim.\n\nHiçbir beklentim ya da geçmişi deşme niyetim yok. Sadece hayatımda bir zamanlar değer verdiğim bir insanın şu an iyi olduğunu bilmek beni mutlu eder.\n\nArkadaşça, içten bir selam olarak kabul et lütfen."
+      },
+      {
+        subject: "Küs kalmak bize göre değil, {isim}",
+        body: "Selam {isim},\n\nAramızdaki bu soğukluk ve iletişim kopukluğu bana çok anlamsız gelmeye başladı. Birbirimize kattığımız onca güzel şeye haksızlık ediyormuşuz gibi hissediyorum.\n\nGel bir beyaz sayfa açalım, ama bu sefer beklentisiz, tertemiz bir arkadaşlık sayfası olsun. Hayat birilerine küs kalmak için çok kısa.\n\nUmarım beni yanlış anlamazsın."
+      },
+      {
+        subject: "Sohbetini özledim, {isim}",
+        body: "{isim},\n\nNe yalan söyleyeyim, seninle oturup havadan sudan, müzikten, hayattan konuşmayı özledim. İkimizin arasındaki o entelektüel uyumu başka kimsede bulamıyorum.\n\nAramızdaki eski meseleleri tamamen kapatıp, yeniden sadece iki iyi dost gibi bir araya gelsek nasıl olur?\n\nKahveler benden, sohbet ikimizden."
+      },
+      {
+        subject: "Bence arkadaş olabiliriz, {isim}",
+        body: "Merhaba {isim},\n\nZaman geçti ve ben bazı şeylere daha objektif bakabiliyorum artık. Geçmişte yaşanan anlaşmazlıkların aslında birbirimizi insan olarak sevmediğimiz anlamına gelmediğini fark ettim.\n\nBence biz çok iyi iki arkadaş olabiliriz. O ilişki stresi olmadan, birbirimizden beklentiye girmeden... Gerçekten değerli bir dostluğun temellerini atabiliriz.\n\nSen ne düşünüyorsun?"
+      },
+      {
+        subject: "Sadece bir selam, {isim}",
+        body: "Selam {isim},\n\nUzun zaman oldu. Umarım hayatında her şey yolundadır ve mutlusundur.\n\nSadece aklımdan geçtin ve arkadaşça bir selam göndermek istedim. Eğer bir ara müsait olursan, sadece dostane bir kahve içmek ve neler yaptığını dinlemek isterim.\n\nKendine iyi bak."
+      },
+      {
+        subject: "İnsan insana her zaman lazımdır, {isim}",
+        body: "{isim},\n\nGeçmişte birbirimizi kırmış olabiliriz ama günün sonunda hepimiz insanız. Ve ben, kaliteli insanların hayatımda kalmasını her zaman tercih ederim.\n\nSana duyduğum saygı hiç eksilmedi. Eğer geçmişin tozlu sayfalarını kapatıp, bugünün arkadaşlığına odaklanabilirsek, ben buradayım.\n\nHaberleşelim."
+      },
+      {
+        subject: "Seni kaybetmek istemiyorum, {isim} (Arkadaş olarak)",
+        body: "Merhaba {isim},\n\nBelki bizden iyi bir çift olmadı ama bizden harika iki arkadaş olabileceğine eminim. Senin mizah anlayışını, olaylara bakış açını her zaman takdir ettim.\n\nO duygusal yükleri tamamen attıktan sonra geriye kalan o saf dostluğu kurtarmayı çok isterim. Bana bu konuda katılır mısın?\n\nİyi dileklerimle."
+      },
+      {
+        subject: "Biz aslında çok iyi anlaşıyorduk, {isim}",
+        body: "Selam {isim},\n\nDüşününce, ilişkiden ziyade aslında ne kadar eğlenceli iki arkadaş olduğumuzu hatırlıyorum. O yükleri omuzumuza almadan önce her şey ne kadar rahattı, değil mi?\n\nHadi o rahat günlere geri dönelim. Sevgili stresini atalım, geriye sadece birbirini dinleyen iki arkadaş kalsın. Bence başarabiliriz.\n\nUmarım iyisindir."
+      },
+      {
+        subject: "Geçmişe sünger, dostluğa merhaba {isim}",
+        body: "{isim},\n\nBu mesajı atarken yüzümde bir gülümseme var. Çünkü artık sana karşı hiçbir kırgınlık taşımıyorum, içim tamamen rahat.\n\nİstiyorum ki sen de rahat ol. Beni gördüğünde veya aklına geldiğimde kötü hissetme. Çünkü ben seni güzel bir arkadaş olarak hatırlamak istiyorum.\n\nKendine çok iyi bak, dostum."
+      },
+      {
+        subject: "Aynı masada karşılıklı gülebiliriz, {isim}",
+        body: "Merhaba {isim},\n\nGeçenlerde gittiğimiz o kafenin önünden geçtim ve gülümsedim. Birlikte ne kadar güzel vakit geçirdiğimizi hatırladım.\n\nO anıları kötü hatırlamak istemiyorum. Aksine, o kafede yeniden buluşup, eski iki dost gibi o masada karşılıklı gülebilmeyi umut ediyorum.\n\nArkadaş kalabilmenin değerine inanıyorum, ya sen?"
+      },
+      {
+        subject: "Değerlisin, hep öyle kalacaksın {isim}",
+        body: "Selam {isim},\n\nAramızda geçenler, benim sana insan olarak verdiğim değeri hiçbir zaman azaltmadı. Sen her zaman kalbi güzel, özel biri oldun benim için.\n\nSadece bu gerçeği bilmeni ve hayatında her zaman dostça sana destek olabilecek biri olduğunu unutmamanı istedim.\n\nHer şey gönlünce olsun."
+      },
+      {
+        subject: "Yeni bir arkadaşlık teklifi, {isim}",
+        body: "{isim},\n\nEski defterleri tamamen kapatıp yepyeni bir defter açmaya ne dersin? Üzerinde 'Arkadaşlık' yazan, sıfır beklentili, bol kahkahalı bir defter...\n\nBen dünü unuttum, sadece yarına ve seninle olan o değerli insani bağımıza odaklanıyorum. Eğer sen de istersen, yeniden tanışalım. Ben Hadi Barışalım :)\n\nGörüşmek üzere."
       }
     ]
   };
