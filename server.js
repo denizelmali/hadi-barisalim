@@ -735,11 +735,15 @@ app.use((req, res) => {
 
 /* ───────── Start ───────── */
 let server;
-if (process.env.NODE_ENV !== "production") {
+// Vercel ortamı değilse sunucuyu başlat (Vercel serverless için export gerekli)
+if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
+  const PORT = process.env.PORT || 3000;
   server = app.listen(PORT, () => {
     console.log(`\n🕊  Hadi Barışalım sunucusu çalışıyor → http://localhost:${PORT}\n`);
   });
 }
+
+module.exports = app;
 
 /* ───────── Graceful Shutdown ───────── */
 function gracefulShutdown(signal) {
