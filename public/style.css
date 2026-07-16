@@ -407,12 +407,13 @@ a { color: inherit; }
   line-height: 1.45;
 }
 
-.tone-card:disabled {
+.tone-card:disabled,
+.tone-card.disabled-look {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.tone-card:not(:disabled):hover {
+.tone-card:not(:disabled):not(.disabled-look):hover {
   border-color: var(--gold);
   transform: translateY(-2px);
 }

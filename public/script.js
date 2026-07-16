@@ -114,7 +114,11 @@
   function updateToneAvailability() {
     var enabled = hasName();
     els.toneCards.forEach(function (card) {
-      card.disabled = !enabled;
+      if (!enabled) {
+        card.classList.add("disabled-look");
+      } else {
+        card.classList.remove("disabled-look");
+      }
     });
   }
 
@@ -186,7 +190,14 @@
   /* ───────── Event Listeners: Tone Cards ───────── */
   els.toneCards.forEach(function (card) {
     card.addEventListener("click", function () {
-      if (card.disabled) return;
+      if (!hasName()) {
+        showToast("Lütfen önce alıcının adını yazın!", "error");
+        // Scroll to name input smoothly
+        els.recipientName.scrollIntoView({ behavior: "smooth", block: "center" });
+        els.recipientName.focus({ preventScroll: true });
+        return;
+      }
+      
       selectedTone = card.getAttribute("data-tone");
       els.toneCards.forEach(function (c) { c.classList.remove("active"); });
       card.classList.add("active");
