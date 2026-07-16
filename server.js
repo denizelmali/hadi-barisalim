@@ -12,7 +12,6 @@ const express = require("express");
 const compression = require("compression");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const MongoStore = require("rate-limit-mongo");
 const cookieParser = require("cookie-parser");
 const nodemailer = require("nodemailer");
 const path = require("path");
@@ -184,60 +183,79 @@ app.use((req, res, next) => {
   next();
 });
 
-/* ───────── Genel API Rate Limiter (Tüm /api/* rotaları) ───────── */
-if (!DENEME_MODU) {
-  const generalApiLimiter = rateLimit({
-    store: new MongoStore({
-      collection: mongoose.connection.collection("rateLimitGeneral"),
-      expireTimeMs: 15 * 60 * 1000,
-      errorHandler: (err) => console.error("RateLimitError (general):", err)
-    }),
-    windowMs: 15 * 60 * 1000, // 15 dakika
-    max: 100, // 15 dakikada max 100 istek
-    standardHeaders: true,
-    legacyHeaders: false,
-    skipFailedRequests: true,
-    message: { ok: false, error: "Çok fazla istek gönderdiniz. Lütfen biraz bekleyin." },
-    keyGenerator: (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip,
-  });
-  app.use("/api/", generalApiLimiter);
-  console.log("🛡  Genel API rate limiter AKTİF (MongoDB)");
-} else {
-  console.log("⚠  DENEME MODU: Genel API rate limiter KAPALI");
+/* ───────── Rate Limit Store Definition ───────── */
+const rateLimitSchema = new mongoose.Schema({
+  key: { type: String, required: true, unique: true },
+  hits: { type: Number, default: 0 },
+  expireAt: { type: Date, required: true, expires: 0 } // TTL index
+});
+const RateLimitModel = mongoose.model("RateLimit", rateLimitSchema);
+
+class MongooseStore {
+  constructor(windowMs) {
+    this.windowMs = windowMs;
+  }
+  init(options) {
+    this.windowMs = options.windowMs;
+  }
+  async increment(key) {
+    if (mongoose.connection.readyState !== 1) return { totalHits: 1, resetTime: new Date(Date.now() + this.windowMs) };
+    try {
+      const expireAt = new Date(Date.now() + this.windowMs);
+      const doc = await RateLimitModel.findOneAndUpdate(
+        { key: key },
+        { $inc: { hits: 1 }, $setOnInsert: { expireAt: expireAt } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+      return { totalHits: doc.hits, resetTime: doc.expireAt };
+    } catch (err) {
+      console.error("RateLimitError:", err);
+      return { totalHits: 1, resetTime: new Date(Date.now() + this.windowMs) };
+    }
+  }
+  async decrement(key) {
+    if (mongoose.connection.readyState !== 1) return;
+    try {
+      await RateLimitModel.updateOne({ key: key }, { $inc: { hits: -1 } });
+    } catch (err) {}
+  }
+  async resetKey(key) {
+    if (mongoose.connection.readyState !== 1) return;
+    try {
+      await RateLimitModel.deleteOne({ key: key });
+    } catch (err) {}
+  }
 }
 
-/* ───────── Rate Limiting: Mail gönderim limiti ───────── */
-let sendLimiter;
-let recipientLimiter;
+let sendLimiter, recipientLimiter, generalApiLimiter;
+
 if (!DENEME_MODU) {
-  sendLimiter = rateLimit({
-    store: new MongoStore({
-      collection: mongoose.connection.collection("rateLimitSend"),
-      expireTimeMs: 24 * 60 * 60 * 1000,
-      errorHandler: (err) => console.error("RateLimitError (send):", err)
-    }),
-    windowMs: 24 * 60 * 60 * 1000, // 24 hours
-    max: 3,
+  generalApiLimiter = rateLimit({
+    store: new MongooseStore(15 * 60 * 1000),
+    windowMs: 15 * 60 * 1000, // 15 dakika
+    max: 100, // 15 dakikada max 100 istek
+    message: { ok: false, error: "Çok fazla istek gönderdiniz. Lütfen daha sonra tekrar deneyin." },
     standardHeaders: true,
     legacyHeaders: false,
-    skipFailedRequests: true,
-    message: {
-      ok: false,
-      error: "Günlük gönderim limitinize ulaştınız (3/gün). Yarın tekrar deneyebilirsiniz.",
-    },
-    keyGenerator: (req) => {
-      return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-    },
+    keyGenerator: (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip
+  });
+
+  app.use("/api/", generalApiLimiter);
+
+  sendLimiter = rateLimit({
+    store: new MongooseStore(24 * 60 * 60 * 1000),
+    windowMs: 24 * 60 * 60 * 1000, // 24 saat
+    max: 3, // Günde max 3 mail
+    message: { ok: false, error: "Günlük mektup gönderme limitine (3) ulaştınız. Lütfen yarın tekrar deneyin." },
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip
   });
 
   recipientLimiter = rateLimit({
-    store: new MongoStore({
-      collection: mongoose.connection.collection("rateLimitRecipient"),
-      expireTimeMs: 24 * 60 * 60 * 1000,
-      errorHandler: (err) => console.error("RateLimitError (recipient):", err)
-    }),
-    windowMs: 24 * 60 * 60 * 1000, // 24 hours
-    max: 3,
+    store: new MongooseStore(24 * 60 * 60 * 1000),
+    windowMs: 24 * 60 * 60 * 1000, // 24 saat
+    max: 2, // Aynı alıcıya günde max 2 mail
     standardHeaders: true,
     legacyHeaders: false,
     skipFailedRequests: true,

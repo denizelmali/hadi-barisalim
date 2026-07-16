@@ -19,7 +19,6 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "mongoose": "^9.7.4",
-    "nodemailer": "^9.0.3",
-    "rate-limit-mongo": "^2.3.2"
+    "nodemailer": "^9.0.3"
   }
 }
