@@ -9,7 +9,9 @@ const BAD_WORDS = [
   "orospu", "oc", "o.c", "pic", "pezevenk", "gavat", "yarrak", "yarak", "yaram", "yarram",
   "amcik", "am", "got", "gotveren", "gotunu", "gotveren", "kahpe", "ibne", "yavsak", 
   "kaltak", "surtuk", "fayise", "fuhus", "pic", "yavsak", "gavat", "kancik",
-  "bok", "serefsiz", "haysiyetsiz", "orospucocugu", "ananizi", "anani"
+  "bok", "serefsiz", "haysiyetsiz", "orospucocugu", "ananizi", "anani",
+  "salak", "aptal", "gerizekali", "ahmak", "kopek", "domuz", 
+  "geber", "gebersin", "olum", "olursun"
 ];
 
 // Yanlış pozitif vermesi muhtemel çok kısa kelimeleri doğrudan boşluksuz regex ile aramamak için

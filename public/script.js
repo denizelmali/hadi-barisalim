@@ -57,7 +57,7 @@
   /* ───────── CSRF Token ───────── */
   async function fetchCsrfToken() {
     try {
-      var response = await fetch("/api/csrf-token");
+      var response = await fetch("/api/csrf-token", { credentials: "same-origin" });
       var data = await response.json();
       if (data.ok) csrfToken = data.token;
     } catch (err) {
@@ -235,6 +235,7 @@
       var response = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({
           recipientName: recipientName,
           recipientEmail: recipientEmail,

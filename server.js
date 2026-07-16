@@ -1,9 +1,19 @@
 require("dotenv").config();
 
+/* ───────── Global Error Handlers ───────── */
+process.on("uncaughtException", (err) => {
+  console.error("CRITICAL: Uncaught Exception:", err);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("CRITICAL: Unhandled Rejection at:", promise, "reason:", reason);
+});
+
 const express = require("express");
 const compression = require("compression");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const MongoStore = require("rate-limit-mongo");
+const cookieParser = require("cookie-parser");
 const nodemailer = require("nodemailer");
 const path = require("path");
 const crypto = require("crypto");
@@ -12,35 +22,17 @@ const { isToxic } = require("./utils/moderation");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-/* ───────── CSRF Token Sistemi ───────── */
-const csrfTokens = new Map(); // token -> { createdAt, ip }
+/* ───────── CSRF Token Sistemi (Double Submit Cookie) ───────── */
 const CSRF_TOKEN_EXPIRY = 30 * 60 * 1000; // 30 dakika
 
-function generateCsrfToken(ip) {
-  const token = crypto.randomBytes(32).toString("hex");
-  csrfTokens.set(token, { createdAt: Date.now(), ip });
-  return token;
+function generateCsrfToken() {
+  return crypto.randomBytes(32).toString("hex");
 }
 
-function validateCsrfToken(token, ip) {
-  const data = csrfTokens.get(token);
-  if (!data) return false;
-  // Token'ı bir kere kullanıldıktan sonra sil (replay attack önlemi)
-  csrfTokens.delete(token);
-  // Süre aşımı kontrolü
-  if (Date.now() - data.createdAt > CSRF_TOKEN_EXPIRY) return false;
-  return true;
+function validateCsrfToken(cookieToken, bodyToken) {
+  if (!cookieToken || !bodyToken) return false;
+  return cookieToken === bodyToken;
 }
-
-// Eski token'ları periyodik temizle (memory leak önlemi)
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, data] of csrfTokens.entries()) {
-    if (now - data.createdAt > CSRF_TOKEN_EXPIRY) {
-      csrfTokens.delete(token);
-    }
-  }
-}, 10 * 60 * 1000); // 10 dakikada bir temizlik
 
 /* ───────── Deneme Modu ─────────
    true  = Rate limiting KAPALI (test aşaması)
@@ -101,11 +93,18 @@ mongoose.connection.on("disconnected", () => { isDbConnected = false; });
 const letterSchema = new mongoose.Schema({
   trackingId: { type: String, required: true, unique: true },
   status: { type: String, required: true, default: "sent" },
-  sentAt: { type: Date, required: true, default: Date.now },
+  sentAt: { type: Date, required: true, default: Date.now, expires: '30d' }, // KVKK: 30 gün sonra otomatik sil (TTL)
   readAt: { type: Date, default: null }
 });
 
 const Letter = mongoose.model("Letter", letterSchema);
+
+const blocklistSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true },
+  blockedAt: { type: Date, default: Date.now }
+});
+
+const Blocklist = mongoose.model("Blocklist", blocklistSchema);
 
 function generateTrackingId() {
   return "HB-" + crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -157,6 +156,7 @@ app.use(
 
 app.use(compression()); // Gzip sıkıştırması
 app.use(express.json({ limit: "10kb" }));
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public"), {
   maxAge: "7d",
   immutable: false,
@@ -187,27 +187,40 @@ app.use((req, res, next) => {
 /* ───────── Genel API Rate Limiter (Tüm /api/* rotaları) ───────── */
 if (!DENEME_MODU) {
   const generalApiLimiter = rateLimit({
+    store: new MongoStore({
+      collection: mongoose.connection.collection("rateLimitGeneral"),
+      expireTimeMs: 15 * 60 * 1000,
+      errorHandler: (err) => console.error("RateLimitError (general):", err)
+    }),
     windowMs: 15 * 60 * 1000, // 15 dakika
     max: 100, // 15 dakikada max 100 istek
     standardHeaders: true,
     legacyHeaders: false,
+    skipFailedRequests: true,
     message: { ok: false, error: "Çok fazla istek gönderdiniz. Lütfen biraz bekleyin." },
     keyGenerator: (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip,
   });
   app.use("/api/", generalApiLimiter);
-  console.log("🛡  Genel API rate limiter AKTİF");
+  console.log("🛡  Genel API rate limiter AKTİF (MongoDB)");
 } else {
   console.log("⚠  DENEME MODU: Genel API rate limiter KAPALI");
 }
 
 /* ───────── Rate Limiting: Mail gönderim limiti ───────── */
 let sendLimiter;
+let recipientLimiter;
 if (!DENEME_MODU) {
   sendLimiter = rateLimit({
+    store: new MongoStore({
+      collection: mongoose.connection.collection("rateLimitSend"),
+      expireTimeMs: 24 * 60 * 60 * 1000,
+      errorHandler: (err) => console.error("RateLimitError (send):", err)
+    }),
     windowMs: 24 * 60 * 60 * 1000, // 24 hours
     max: 3,
     standardHeaders: true,
     legacyHeaders: false,
+    skipFailedRequests: true,
     message: {
       ok: false,
       error: "Günlük gönderim limitinize ulaştınız (3/gün). Yarın tekrar deneyebilirsiniz.",
@@ -216,10 +229,31 @@ if (!DENEME_MODU) {
       return req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
     },
   });
-  console.log("🛡  Mail gönderim rate limiter AKTİF (3/gün)");
+
+  recipientLimiter = rateLimit({
+    store: new MongoStore({
+      collection: mongoose.connection.collection("rateLimitRecipient"),
+      expireTimeMs: 24 * 60 * 60 * 1000,
+      errorHandler: (err) => console.error("RateLimitError (recipient):", err)
+    }),
+    windowMs: 24 * 60 * 60 * 1000, // 24 hours
+    max: 3,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipFailedRequests: true,
+    message: {
+      ok: false,
+      error: "Bu e-posta adresine günlük gönderim limitine ulaşıldı (3/gün). Lütfen yarın tekrar deneyin.",
+    },
+    keyGenerator: (req) => {
+      return req.body.recipientEmail ? req.body.recipientEmail.toLowerCase().trim() : (req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip);
+    },
+  });
+  console.log("🛡  Mail gönderim rate limiter AKTİF (MongoDB - IP: 3/gün, Alıcı: 3/gün)");
 } else {
   // Deneme modunda boş middleware
   sendLimiter = (req, res, next) => next();
+  recipientLimiter = (req, res, next) => next();
   console.log("⚠  DENEME MODU: Mail gönderim rate limiter KAPALI");
 }
 
@@ -228,6 +262,9 @@ const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: parseInt(process.env.SMTP_PORT || "587", 10),
   secure: false,
+  connectionTimeout: 8000, // 8 saniye (Vercel timeout öncesi iptal etmesi için)
+  greetingTimeout: 8000,
+  socketTimeout: 8000,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
@@ -258,19 +295,28 @@ function sanitize(str, maxLen) {
 /* ───────── API: Send Mail ───────── */
 /* ───────── API: CSRF Token Endpoint ───────── */
 app.get("/api/csrf-token", (req, res) => {
-  const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-  const token = generateCsrfToken(ip);
+  const token = generateCsrfToken();
+  res.cookie("csrf_token", token, {
+    maxAge: CSRF_TOKEN_EXPIRY,
+    httpOnly: false, // İstemci JavaScript'inin okuyabilmesi için false
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+  });
   res.json({ ok: true, token });
 });
 
-app.post("/api/send", sendLimiter, async (req, res) => {
+app.post("/api/send", sendLimiter, recipientLimiter, async (req, res) => {
   try {
-    // CSRF Token doğrulaması
-    const csrfToken = req.body._csrf || req.headers["x-csrf-token"];
-    const clientIp = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
-    if (!csrfToken || !validateCsrfToken(csrfToken, clientIp)) {
+    // CSRF Token doğrulaması (Double Submit Cookie)
+    const cookieToken = req.cookies && req.cookies.csrf_token;
+    const headerOrBodyToken = req.body._csrf || req.headers["x-csrf-token"];
+    
+    if (!validateCsrfToken(cookieToken, headerOrBodyToken)) {
       return res.status(403).json({ ok: false, error: "Güvenlik doğrulaması başarısız. Lütfen sayfayı yenileyip tekrar deneyin." });
     }
+    
+    // Tek kullanımlık olması için doğrulandıktan sonra çerezi temizleyelim
+    res.clearCookie("csrf_token");
     const recipientName = sanitize(req.body.recipientName, 100);
     const recipientEmail = sanitize(req.body.recipientEmail, 254);
     const senderName = sanitize(req.body.senderName, 100);
@@ -296,6 +342,15 @@ app.post("/api/send", sendLimiter, async (req, res) => {
       return res.status(400).json({ 
         ok: false, 
         error: "Mesajınız topluluk kurallarımıza (hakaret/nefret söylemi) aykırı içerik barındırdığı için gönderilemedi." 
+      });
+    }
+
+    // Alıcı Blocklist (Kara Liste) Kontrolü
+    const isBlocked = await Blocklist.exists({ email: recipientEmail.toLowerCase() });
+    if (isBlocked) {
+      return res.status(403).json({
+        ok: false,
+        error: "Bu e-posta adresi sistemimizden mektup almayı reddetmiştir. Gönderim yapılamaz."
       });
     }
 
@@ -340,10 +395,13 @@ app.post("/api/send", sendLimiter, async (req, res) => {
 
     // Tracking ID setup
     const trackingId = generateTrackingId();
-    const serverUrl = req.protocol + "://" + req.get("host");
+    const serverUrl =
+      process.env.NODE_ENV === "production"
+        ? "https://hadibarisalim.com"
+        : `http://localhost:${PORT}`;
 
     // Build HTML version
-    const htmlBody = buildHtmlEmail(subject, body, mode === "anonymous", spotifyLink, trackingId, serverUrl);
+    const htmlBody = buildHtmlEmail(subject, body, mode === "anonymous", spotifyLink, trackingId, serverUrl, recipientEmail);
 
     // Save tracking data to MongoDB FIRST
     // Bu sayede veritabanı bağlantısı kopuksa boşuna mail atılmaz.
@@ -393,8 +451,57 @@ app.post("/api/send", sendLimiter, async (req, res) => {
   }
 });
 
+/* ───────── API: Unsubscribe ───────── */
+app.get("/api/unsubscribe", async (req, res) => {
+  const { email, token } = req.query;
+  if (!email || !token) {
+    return res.status(400).send("Eksik parametre.");
+  }
+
+  const hmac = crypto.createHmac("sha256", process.env.SESSION_SECRET || "hadibarisalim-secret");
+  const expectedToken = hmac.update(email).digest("hex");
+
+  if (token !== expectedToken) {
+    return res.status(403).send("Geçersiz doğrulama bağlantısı.");
+  }
+
+  try {
+    await Blocklist.updateOne(
+      { email: email.toLowerCase() },
+      { $set: { email: email.toLowerCase(), blockedAt: Date.now() } },
+      { upsert: true }
+    );
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="tr">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Engellendi — Hadi Barışalım</title>
+        <style>
+          body { font-family: -apple-system, sans-serif; background: #1E1520; color: #F6EEE1; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 20px; }
+          .card { background: #2A1E2C; padding: 40px; border-radius: 12px; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+          h1 { color: #E7C685; margin-top: 0; }
+          p { color: #c4b5c7; line-height: 1.6; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>İşlem Başarılı</h1>
+          <p><b>${escapeHtml(email)}</b> adresi kara listeye alındı.</p>
+          <p>Artık Hadi Barışalım platformu üzerinden size mektup gönderilemeyecek.</p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    console.error("Unsubscribe error:", err);
+    res.status(500).send("Sistem hatası. Lütfen daha sonra tekrar deneyin.");
+  }
+});
+
 /* ───────── HTML Email Builder ───────── */
-function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId, serverUrl) {
+function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId, serverUrl, recipientEmail) {
   const paragraphs = textBody
     .split("\n\n")
     .map((p) => escapeHtml(p).replace(/\n/g, "<br>"))
@@ -414,10 +521,15 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
     ? "Bu e-posta, hadibarisalim.com platformu aracılığıyla bir kullanıcımız tarafından anonim olarak oluşturulmuş ve size iletilmiştir. Platformumuz, insanların içlerinden geçenleri dürüstçe yazabilmeleri için güvenli bir iletişim köprüsü kurmayı amaçlar." 
     : "Bu e-posta, hadibarisalim.com platformu aracılığıyla oluşturulmuş ve size iletilmiştir. Platformumuz, insanların içlerinden geçenleri dürüstçe yazabilmeleri için güvenli bir iletişim köprüsü kurmayı amaçlar.";
 
+  // Generate Unsubscribe Link
+  const hmac = crypto.createHmac("sha256", process.env.SESSION_SECRET || "hadibarisalim-secret");
+  const unsubscribeToken = hmac.update(recipientEmail).digest("hex");
+  const unsubscribeLink = `${serverUrl}/api/unsubscribe?email=${encodeURIComponent(recipientEmail)}&token=${unsubscribeToken}`;
+
   const footer = `
     <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
     <p style="margin:0 0 8px;font-size:11px;color:#8A7A63;opacity:0.8;">
-      Bu tür mektupların doğası gereği kişisel olduğunu hatırlatmak isteriz. Eğer bu mesajı bir hata sonucu aldığınızı düşünüyorsanız veya gelecekte sistemimiz üzerinden benzer e-postalar almak istemiyorsanız, lütfen platformumuzu ziyaret ederek iletişime geçin. 
+      Bu tür mektupların doğası gereği kişisel olduğunu hatırlatmak isteriz. Eğer bu mesajı bir hata sonucu aldığınızı düşünüyorsanız veya gelecekte sistemimiz üzerinden bir daha e-posta almak istemiyorsanız, <a href="${unsubscribeLink}" style="color:#C9A15B;text-decoration:underline;">buraya tıklayarak e-posta adresinizi engelleyebilirsiniz</a>. 
       Güvenliğiniz ve gizliliğiniz için sistemimiz katı gönderim limitleriyle korunmaktadır.
     </p>
     <p style="margin:0;font-size:10px;color:#8A7A63;opacity:0.6;">
@@ -604,11 +716,50 @@ app.use((req, res) => {
 });
 
 /* ───────── Start ───────── */
+let server;
 if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => {
+  server = app.listen(PORT, () => {
     console.log(`\n🕊  Hadi Barışalım sunucusu çalışıyor → http://localhost:${PORT}\n`);
   });
 }
+
+/* ───────── Graceful Shutdown ───────── */
+function gracefulShutdown(signal) {
+  console.log(`\n${signal} sinyali alındı. Sunucu kapatılıyor...`);
+  
+  const closeServer = () => new Promise((resolve) => {
+    if (server) {
+      server.close(() => {
+        console.log("HTTP sunucusu kapatıldı.");
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+
+  const closeDb = () => new Promise((resolve) => {
+    if (mongoose.connection.readyState !== 0) {
+      mongoose.connection.close(false).then(() => {
+        console.log("MongoDB bağlantısı kapatıldı.");
+        resolve();
+      }).catch(err => {
+        console.error("MongoDB kapatılırken hata oluştu:", err);
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
+
+  Promise.all([closeServer(), closeDb()]).then(() => {
+    console.log("Zarif kapanış tamamlandı. Çıkış yapılıyor.");
+    process.exit(0);
+  });
+}
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
 // Vercel Serverless Functions için app'i dışa aktarıyoruz
 module.exports = app;
