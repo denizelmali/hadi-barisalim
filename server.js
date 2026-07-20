@@ -30,7 +30,15 @@ function generateCsrfToken() {
 
 function validateCsrfToken(cookieToken, bodyToken) {
   if (!cookieToken || !bodyToken) return false;
-  return cookieToken === bodyToken;
+  // Timing-safe karşılaştırma (brute-force koruması)
+  try {
+    const a = Buffer.from(cookieToken, "utf8");
+    const b = Buffer.from(bodyToken, "utf8");
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
 }
 
 /* ───────── Deneme Modu ─────────
@@ -44,10 +52,11 @@ const DENEME_MODU = process.env.DENEME_MODU === "true"; // varsayılan: false (g
 let isDbConnected = false;
 
 const MONGO_OPTIONS = {
-  serverSelectionTimeoutMS: 8000,
-  socketTimeoutMS: 15000,
+  serverSelectionTimeoutMS: 3000, // Reduced from 8000 to prevent Vercel timeout (10s limit)
+  socketTimeoutMS: 10000,
   maxPoolSize: 10,
   minPoolSize: 1,
+  bufferCommands: false, // Fail fast if DB is disconnected instead of hanging indefinitely
 };
 
 // MongoDB bağlantı fonksiyonu — SRV başarısız olursa fallback URI'ye geçer
@@ -476,10 +485,22 @@ app.get("/api/unsubscribe", async (req, res) => {
     return res.status(400).send("Eksik parametre.");
   }
 
-  const hmac = crypto.createHmac("sha256", process.env.SESSION_SECRET || "hadibarisalim-secret");
+  if (!process.env.SESSION_SECRET) {
+    console.error("CRITICAL: SESSION_SECRET tanımlı değil! Unsubscribe devre dışı.");
+    return res.status(503).send("Sistem bakımda. Lütfen daha sonra tekrar deneyin.");
+  }
+  const hmac = crypto.createHmac("sha256", process.env.SESSION_SECRET);
   const expectedToken = hmac.update(email).digest("hex");
 
-  if (token !== expectedToken) {
+  // Timing-safe karşılaştırma
+  let isValid = false;
+  try {
+    const a = Buffer.from(token, "utf8");
+    const b = Buffer.from(expectedToken, "utf8");
+    isValid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch { isValid = false; }
+
+  if (!isValid) {
     return res.status(403).send("Geçersiz doğrulama bağlantısı.");
   }
 
@@ -527,9 +548,11 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
     .join("");
 
   const safeSpotifyLink = spotifyLink ? escapeHtml(spotifyLink) : "";
+  const trackedSpotifyLink = safeSpotifyLink ? `${serverUrl}/api/track/${trackingId}/click?url=${encodeURIComponent(safeSpotifyLink)}` : "";
+  
   const spotifyHtml = safeSpotifyLink
     ? `<div style="margin: 32px 0; text-align: center;">
-         <a href="${safeSpotifyLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #C9A15B; color: #1E1520; text-decoration: none; padding: 12px 24px; border-radius: 999px; font-weight: bold; font-family: -apple-system, sans-serif; font-size: 14px;">
+         <a href="${trackedSpotifyLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #C9A15B; color: #1E1520; text-decoration: none; padding: 12px 24px; border-radius: 999px; font-weight: bold; font-family: -apple-system, sans-serif; font-size: 14px;">
            🎵 Bu mektuba eklenen şarkıyı dinle
          </a>
        </div>`
@@ -539,10 +562,14 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
     ? "Bu e-posta, hadibarisalim.com platformu aracılığıyla bir kullanıcımız tarafından anonim olarak oluşturulmuş ve size iletilmiştir. Platformumuz, insanların içlerinden geçenleri dürüstçe yazabilmeleri için güvenli bir iletişim köprüsü kurmayı amaçlar." 
     : "Bu e-posta, hadibarisalim.com platformu aracılığıyla oluşturulmuş ve size iletilmiştir. Platformumuz, insanların içlerinden geçenleri dürüstçe yazabilmeleri için güvenli bir iletişim köprüsü kurmayı amaçlar.";
 
-  // Generate Unsubscribe Link
-  const hmac = crypto.createHmac("sha256", process.env.SESSION_SECRET || "hadibarisalim-secret");
-  const unsubscribeToken = hmac.update(recipientEmail).digest("hex");
-  const unsubscribeLink = `${serverUrl}/api/unsubscribe?email=${encodeURIComponent(recipientEmail)}&token=${unsubscribeToken}`;
+  // Generate Unsubscribe Link (SESSION_SECRET yoksa link oluşturma — sessiz degrade)
+  const sessionSecret = process.env.SESSION_SECRET;
+  let unsubscribeLink = "";
+  if (sessionSecret) {
+    const hmac = crypto.createHmac("sha256", sessionSecret);
+    const unsubscribeToken = hmac.update(recipientEmail).digest("hex");
+    unsubscribeLink = `${serverUrl}/api/unsubscribe?email=${encodeURIComponent(recipientEmail)}&token=${unsubscribeToken}`;
+  }
 
   const footer = `
     <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
@@ -601,16 +628,16 @@ app.get("/api/track/:id/pixel.gif", async (req, res) => {
     "base64"
   );
 
-  // Set headers early
+  // Daha sıkı cache önleme başlıkları (özellikle proxy'ler için)
   res.writeHead(200, {
     "Content-Type": "image/gif",
     "Content-Length": pixel.length,
-    "Cache-Control": "no-store, no-cache, must-revalidate, private",
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
     "Pragma": "no-cache",
     "Expires": "0",
   });
 
-  // Regex doğrulama ile geçersiz formatlar DB'yi yormaz (Performans & Güvenlik)
+  // Regex doğrulama ile geçersiz formatlar DB'yi yormaz
   if (!trackingIdRegex.test(id)) {
     return res.end(pixel);
   }
@@ -624,13 +651,13 @@ app.get("/api/track/:id/pixel.gif", async (req, res) => {
       console.log(`[PIXEL HIT] ID: ${id} | TimeDiff: ${timeDiffMs}ms | IP: ${ip} | UA: ${userAgent}`);
 
       if (letter.status !== "read") {
-        // E-posta gönderildikten sonraki ilk 5 saniye içinde gelen okumalar 
-        // genellikle otomatik botlar tarafından yapılır. 
-        if (!isBot && timeDiffMs > 5000) {
+        // E-posta gönderildikten sonraki süre kontrolü (5sn'den 1.5sn'ye düşürüldü)
+        // Gerçek kullanıcıların anında açması durumunda kaçırılmaması için
+        if (!isBot && timeDiffMs > 1500) {
           letter.status = "read";
           letter.readAt = new Date();
           await letter.save();
-          console.log(`👁  Mektup okundu [ID: ${id}]`);
+          console.log(`👁  Mektup okundu (Pixel) [ID: ${id}]`);
         } else {
           console.log(`[PIXEL IGNORED] ID: ${id} | isBot: ${isBot} | timeDiffMs: ${timeDiffMs}`);
         }
@@ -641,6 +668,45 @@ app.get("/api/track/:id/pixel.gif", async (req, res) => {
   }
 
   res.end(pixel);
+});
+
+/* ───────── API: Tracking Click (Spotify vb. linklere tıklanınca da okundu say) ───────── */
+/* Güvenlik: Sadece güvenilir domainlere yönlendirme — Open Redirect engellendi */
+const ALLOWED_REDIRECT_DOMAINS = ["open.spotify.com"];
+
+app.get("/api/track/:id/click", async (req, res) => {
+  const id = req.params.id;
+  const targetUrl = req.query.url;
+
+  if (!targetUrl) {
+    return res.status(400).send("Yönlendirme linki eksik.");
+  }
+
+  // Open Redirect koruması: Sadece izin verilen domainlere yönlendir
+  try {
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol !== "https:" || !ALLOWED_REDIRECT_DOMAINS.includes(parsed.hostname)) {
+      return res.status(403).send("Bu bağlantıya yönlendirme yapılamaz.");
+    }
+  } catch {
+    return res.status(400).send("Geçersiz bağlantı.");
+  }
+
+  if (trackingIdRegex.test(id)) {
+    try {
+      const letter = await Letter.findOne({ trackingId: id });
+      if (letter && letter.status !== "read") {
+        letter.status = "read";
+        letter.readAt = new Date();
+        await letter.save();
+        console.log(`🖱  Mektup okundu (Link Tıklaması) [ID: ${id}]`);
+      }
+    } catch (err) {
+      console.error("Tracking click DB hatası:", err);
+    }
+  }
+
+  res.redirect(targetUrl);
 });
 
 /* ───────── API: Check Status ───────── */
@@ -676,7 +742,12 @@ app.get("/api/track/:id", async (req, res) => {
 });
 
 /* ───────── API: Health Check ───────── */
+/* Güvenlik: Production'da iç detaylar gizlenir */
 app.get("/api/health", (_req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.json({ ok: isDbConnected });
+  }
+  // Development'ta detaylı bilgi
   res.json({
     ok: true,
     timestamp: new Date().toISOString(),

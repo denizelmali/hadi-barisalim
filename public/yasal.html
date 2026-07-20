@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yasal Uyarılar ve Gizlilik — Hadi Barışalım</title>
+<meta name="description" content="Hadi Barışalım platformunun Kullanım Koşulları, Gizlilik Politikası, KVKK Açık Rıza Metni ve Çerez Politikası.">
 <meta name="theme-color" content="#1E1520">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,6 +23,8 @@
   .legal-page .back-link { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--primary-color); text-decoration: none; font-weight: 500; margin-bottom: 2rem; transition: opacity 0.2s; }
   .legal-page .back-link:hover { opacity: 0.8; }
   .legal-page strong { font-weight: 600; color: var(--heading-color); }
+  .legal-page .contact-box { background: var(--card-bg, #2A1E2C); border: 1px solid var(--border-color, #3a2e3c); border-radius: 12px; padding: 1.5rem; margin-top: 1.5rem; }
+  .legal-page .contact-box p { margin-bottom: 0.5rem; }
   
   /* Gece Modu Desteği (Ana CSS'te tanımlı değişkenleri kullanıyoruz) */
   body[data-theme="dark"] .legal-page {
@@ -37,7 +40,7 @@
     </a>
 
     <h1>Yasal Uyarılar ve Gizlilik</h1>
-    <p><em>Son güncellenme tarihi: 14 Temmuz 2026</em></p>
+    <p><em>Son güncellenme tarihi: 21 Temmuz 2026</em></p>
 
     <h2>Kullanım Koşulları ve Sorumluluk Reddi</h2>
     <h3>1. Hizmetin Amacı</h3>
@@ -63,11 +66,47 @@
     <h3>3. Takip Teknolojileri (Piksel)</h3>
     <p>E-postanın okunup okunmadığını tespit etmek için gönderilen maile 1x1 boyutunda görünmez bir takip pikseli eklenir. Bu teknoloji, e-postayı açan cihazın IP adresi ve tarayıcı bilgilerini analiz ederek okuma durumunu belirler.</p>
 
+    <h3>4. Veri Saklama Süresi</h3>
+    <p><strong>Mektup takip verileri</strong> (takip kodu, gönderim tarihi, okunma durumu) veritabanında <strong>en fazla 30 gün</strong> saklanır ve bu süre sonunda otomatik olarak silinir (TTL mekanizması). Mektup içeriği (metin) sunucuda hiçbir şekilde saklanmaz; yalnızca e-posta gönderim anında işlenir ve ardından bellekten silinir.</p>
+    <p><strong>IP adresleri</strong>, rate limit (gönderim sınırı) mekanizmasının doğru çalışması için geçici süreyle (en fazla 24 saat) saklanır.</p>
+    <p><strong>Engelleme (kara liste) verileri</strong>, alıcının isteği üzerine kaydedilir ve kullanıcı aksini talep etmedikçe saklanmaya devam eder.</p>
+
+    <h2>Çerez (Cookie) Politikası</h2>
+    <h3>1. Kullanılan Çerezler</h3>
+    <p>Hadi Barışalım platformu aşağıdaki çerezleri ve yerel depolama teknolojilerini kullanır:</p>
+    <ul>
+      <li><strong>csrf_token (Çerez)</strong> — Güvenlik amacıyla kullanılır. Formun kötü niyetli siteler tarafından kullanıcı adına gönderilmesini (CSRF saldırısı) engeller. Tek kullanımlıktır ve her form gönderiminde yenilenir. Ömrü: 30 dakika.</li>
+      <li><strong>hadi_barisalim_theme (Yerel Depolama)</strong> — Gece modu tercihinizi (açık/koyu tema) hatırlamak için kullanılır. Herhangi bir kişisel veri içermez.</li>
+    </ul>
+
+    <h3>2. Üçüncü Taraf Çerezleri</h3>
+    <p>Platformumuz herhangi bir analitik, reklam veya üçüncü taraf izleme çerezi kullanmaz. Google Fonts hizmeti yalnızca yazı tipi yüklemek amacıyla kullanılır ve çerez bırakmaz.</p>
+
     <h2>KVKK Açık Rıza Metni</h2>
     <h3>Kişisel Verilerin İşlenmesi ve Aktarılması</h3>
     <p>Hadi Barışalım platformunu kullanarak, kendinize veya bir başkasına (alıcıya) ait e-posta adresini ve ad bilgisini sistemimize giriyorsunuz. Bu verilerin 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında, yalnızca e-postanın başarılı bir şekilde gönderilmesi, güvenlik amacıyla log kayıtlarının (IP adresi dâhil) geçici süreliğine tutulması ve mektup okuma durumunun tespit edilmesi amaçlarıyla işlenmesine açık rıza göstermektesiniz.</p>
     
     <p>Ayrıca girdiğiniz verilerin, e-postanın iletilmesi amacıyla yurt içi veya yurt dışındaki e-posta servis sağlayıcıları aracılığıyla aktarılmasına onay verdiğinizi beyan edersiniz.</p>
+
+    <h3>Haklarınız (KVKK Madde 11)</h3>
+    <p>6698 sayılı KVKK kapsamında aşağıdaki haklara sahipsiniz:</p>
+    <ul>
+      <li>Kişisel verilerinizin işlenip işlenmediğini öğrenme,</li>
+      <li>İşlenmiş ise buna ilişkin bilgi talep etme,</li>
+      <li>İşlenme amacını ve amacına uygun kullanılıp kullanılmadığını öğrenme,</li>
+      <li>Yurt içinde veya yurt dışında aktarıldığı üçüncü kişileri bilme,</li>
+      <li>Eksik veya yanlış işlenmiş olması halinde düzeltilmesini isteme,</li>
+      <li>KVKK'nın 7. maddesi çerçevesinde silinmesini veya yok edilmesini isteme,</li>
+      <li>İşlenen verilerin münhasıran otomatik sistemler vasıtasıyla analiz edilmesi suretiyle aleyhinize bir sonucun ortaya çıkmasına itiraz etme.</li>
+    </ul>
+
+    <h2>İletişim</h2>
+    <div class="contact-box">
+      <p>Kişisel verilerinize ilişkin talepleriniz, yasal sorularınız veya platform hakkındaki geri bildirimleriniz için aşağıdaki iletişim kanalını kullanabilirsiniz:</p>
+      <p><strong>E-posta:</strong> hadiibarisalim@gmail.com</p>
+      <p><strong>Platform:</strong> hadibarisalim.com</p>
+      <p>Talepleriniz en geç <strong>30 gün</strong> içinde değerlendirilerek yanıtlanacaktır.</p>
+    </div>
 
   </div>
 </body>
