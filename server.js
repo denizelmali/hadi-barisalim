@@ -463,10 +463,8 @@ app.post("/api/send", ensureDbConnected, sendLimiter, recipientLimiter, async (r
 
     // Tracking ID setup
     const trackingId = generateTrackingId();
-    const serverUrl =
-      process.env.NODE_ENV === "production"
-        ? "https://hadibarisalim.com"
-        : `http://localhost:${PORT}`;
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const serverUrl = `${protocol}://${req.get("host")}`;
 
     // Build HTML version
     const htmlBody = buildHtmlEmail(subject, body, mode === "anonymous", spotifyLink, trackingId, serverUrl, recipientEmail);
@@ -581,21 +579,25 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
   const paragraphs = textBody
     .split("\n\n")
     .map((p) => escapeHtml(p).replace(/\n/g, "<br>"))
-    .map((p) => `<p style="margin:0 0 16px;line-height:1.6;">${p}</p>`)
+    .map((p) => `<p style="margin:0 0 16px;line-height:1.7;color:#2B211B;">${p}</p>`)
     .join("");
 
   const safeSpotifyLink = spotifyLink ? escapeHtml(spotifyLink) : "";
   const trackedSpotifyLink = safeSpotifyLink ? `${serverUrl}/api/track/${trackingId}/click?url=${encodeURIComponent(safeSpotifyLink)}` : "";
   
   const spotifyHtml = safeSpotifyLink
-    ? `<p style="margin: 24px 0;"><a href="${trackedSpotifyLink}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none;">🎵 Bu mesaja eklenen şarkıyı dinle</a></p>`
+    ? `<div style="margin: 32px 0; text-align: center;">
+         <a href="${trackedSpotifyLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #C9A15B; color: #1E1520; text-decoration: none; padding: 12px 24px; border-radius: 999px; font-weight: bold; font-family: -apple-system, sans-serif; font-size: 14px;">
+           🎵 Bu mektuba eklenen şarkıyı dinle
+         </a>
+       </div>`
     : "";
 
   const footerText = isAnonymous 
-    ? "Bu mesaj bir kullanıcı tarafından size anonim olarak iletilmiştir." 
-    : "Bu mesaj bir kullanıcı tarafından size iletilmiştir.";
+    ? "Bu mesaj bir kullanıcımız tarafından size anonim olarak iletilmiştir." 
+    : "Bu mesaj bir kullanıcımız tarafından size iletilmiştir.";
 
-  // Generate Unsubscribe Link (gizli ve sade)
+  // Generate Unsubscribe Link
   const sessionSecret = process.env.SESSION_SECRET;
   let unsubscribeLink = "";
   if (sessionSecret) {
@@ -605,22 +607,36 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
   }
 
   const footer = `
-    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999;">
-      <p style="margin: 0 0 8px;">--<br>${footerText}</p>
-      <p style="margin: 0;">Yanlışlıkla aldıysanız <a href="${unsubscribeLink}" style="color: #ccc; text-decoration: none;">engellemek için tıklayın</a>.</p>
-    </div>`;
+    <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
+    <p style="margin:0 0 8px;font-size:11px;color:#8A7A63;opacity:0.8;">
+      Eğer bu mesajı yanlışlıkla aldığınızı düşünüyorsanız veya bir daha e-posta almak istemiyorsanız, <a href="${unsubscribeLink}" style="color:#C9A15B;text-decoration:underline;">buraya tıklayarak engelleyebilirsiniz</a>.
+    </p>`;
 
-  const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" border="0" style="display:block; border:none; outline:none; text-decoration:none; opacity: 0;" alt="" />`;
+  const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" border="0" style="display:block; border:none; outline:none; text-decoration:none;" alt="" />`;
 
   return `
 <!DOCTYPE html>
 <html lang="tr">
 <head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:20px;background:#ffffff;font-family:sans-serif,Arial;color:#222;">
-  <div style="max-width:600px;font-size:15px;">
-    ${paragraphs}
-    ${spotifyHtml}
-    ${footer}
+<body style="margin:0;padding:0;background:#1E1520;font-family:'Georgia',serif;">
+  <div style="max-width:580px;margin:40px auto;background:#F6EEE1;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#1E1520,#2A1E2C);padding:32px 40px;text-align:center;">
+      <h1 style="margin:0;font-family:'Georgia',serif;font-size:24px;color:#E7C685;font-weight:normal;font-style:italic;">
+        Hadi <em>Barış</em><span style="color:#C9A15B;">alım</span>
+      </h1>
+      <div style="width:80px;height:2px;background:linear-gradient(90deg,transparent,#C9A15B,transparent);margin:16px auto 0;"></div>
+    </div>
+    <!-- Body -->
+    <div style="padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:16px;">
+      ${paragraphs}
+      ${spotifyHtml}
+    </div>
+    <!-- Footer -->
+    <div style="padding:0 40px 32px;text-align:center;">
+      <div style="height:1px;background:linear-gradient(90deg,transparent,#D9C8AA,transparent);margin-bottom:20px;"></div>
+      ${footer}
+    </div>
   </div>
   ${trackingPixel}
 </body>
