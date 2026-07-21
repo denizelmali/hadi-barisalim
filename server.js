@@ -50,9 +50,10 @@ const DENEME_MODU = process.env.DENEME_MODU === "true"; // varsayılan: false (g
 
 /* ───────── Database Setup (MongoDB + Vercel Connection Caching) ───────── */
 let isDbConnected = false;
+let dbConnectionPromise = null; // Vercel serverless: bağlantı promise'ini cache'le
 
 const MONGO_OPTIONS = {
-  serverSelectionTimeoutMS: 3000, // Reduced from 8000 to prevent Vercel timeout (10s limit)
+  serverSelectionTimeoutMS: 5000, // Vercel timeout (10s) öncesi yeterli süre
   socketTimeoutMS: 10000,
   maxPoolSize: 10,
   minPoolSize: 1,
@@ -61,39 +62,71 @@ const MONGO_OPTIONS = {
 
 // MongoDB bağlantı fonksiyonu — SRV başarısız olursa fallback URI'ye geçer
 async function connectMongoDB() {
-  if (mongoose.connection.readyState !== 0) return; // Zaten bağlıysa atla
+  // Zaten bağlıysa atla
+  if (mongoose.connection.readyState === 1) {
+    isDbConnected = true;
+    return;
+  }
+  // Bağlanıyorsa mevcut promise'i bekle (çift bağlantı önleme)
+  if (mongoose.connection.readyState === 2 && dbConnectionPromise) {
+    return dbConnectionPromise;
+  }
 
   const primaryUri = process.env.MONGODB_URI || "mongodb://localhost:27017/hadibarisalim";
   const fallbackUri = process.env.MONGODB_URI_FALLBACK;
 
-  try {
-    await mongoose.connect(primaryUri, MONGO_OPTIONS);
-    isDbConnected = true;
-    console.log("✔  MongoDB bağlantısı başarılı (SRV)");
-  } catch (err) {
-    console.error("✘  MongoDB SRV bağlantı hatası:", err.message);
+  dbConnectionPromise = (async () => {
+    try {
+      await mongoose.connect(primaryUri, MONGO_OPTIONS);
+      isDbConnected = true;
+      console.log("✔  MongoDB bağlantısı başarılı (SRV)");
+    } catch (err) {
+      console.error("✘  MongoDB SRV bağlantı hatası:", err.message);
 
-    // Fallback: Doğrudan shard adresleriyle bağlan
-    if (fallbackUri) {
-      console.log("↻  Fallback URI deneniyor (direkt shard adresleri)...");
-      try {
-        await mongoose.connect(fallbackUri, MONGO_OPTIONS);
-        isDbConnected = true;
-        console.log("✔  MongoDB bağlantısı başarılı (Fallback)");
-      } catch (fallbackErr) {
+      // Fallback: Doğrudan shard adresleriyle bağlan
+      if (fallbackUri) {
+        console.log("↻  Fallback URI deneniyor (direkt shard adresleri)...");
+        try {
+          await mongoose.connect(fallbackUri, MONGO_OPTIONS);
+          isDbConnected = true;
+          console.log("✔  MongoDB bağlantısı başarılı (Fallback)");
+        } catch (fallbackErr) {
+          isDbConnected = false;
+          console.error("✘  MongoDB fallback bağlantı hatası:", fallbackErr.message);
+          console.error("   Atlas Dashboard: https://cloud.mongodb.com");
+        }
+      } else {
         isDbConnected = false;
-        console.error("✘  MongoDB fallback bağlantı hatası:", fallbackErr.message);
+        console.error("   MONGODB_URI_FALLBACK tanımlı değil. .env dosyasını kontrol edin.");
         console.error("   Atlas Dashboard: https://cloud.mongodb.com");
       }
-    } else {
-      isDbConnected = false;
-      console.error("   MONGODB_URI_FALLBACK tanımlı değil. .env dosyasını kontrol edin.");
-      console.error("   Atlas Dashboard: https://cloud.mongodb.com");
+    } finally {
+      dbConnectionPromise = null;
     }
-  }
+  })();
+
+  return dbConnectionPromise;
 }
 
+// İlk bağlantıyı başlat (ama await ETME — serverless'ta middleware bekleyecek)
 connectMongoDB();
+
+/* ───────── ensureDbConnected Middleware ───────── */
+// Her API isteğinden önce MongoDB bağlantısını garanti eder
+async function ensureDbConnected(req, res, next) {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectMongoDB();
+    }
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ ok: false, error: "Veritabanı bağlantısı kurulamadı. Lütfen birkaç saniye sonra tekrar deneyin." });
+    }
+    next();
+  } catch (err) {
+    console.error("ensureDbConnected hatası:", err.message);
+    return res.status(503).json({ ok: false, error: "Veritabanı bağlantısı kurulamadı. Lütfen tekrar deneyin." });
+  }
+}
 
 mongoose.connection.on("connected", () => { isDbConnected = true; });
 mongoose.connection.on("disconnected", () => { isDbConnected = false; });
@@ -201,18 +234,25 @@ const rateLimitSchema = new mongoose.Schema({
 const RateLimitModel = mongoose.model("RateLimit", rateLimitSchema);
 
 class MongooseStore {
-  constructor(windowMs) {
+  constructor(windowMs, prefix) {
     this.windowMs = windowMs;
+    this.prefix = prefix || ""; // Her limiter'ın key'lerini izole et
   }
   init(options) {
-    this.windowMs = options.windowMs;
+    if (options && options.windowMs) {
+      this.windowMs = options.windowMs;
+    }
+  }
+  _prefixedKey(key) {
+    return this.prefix + key;
   }
   async increment(key) {
     if (mongoose.connection.readyState !== 1) return { totalHits: 1, resetTime: new Date(Date.now() + this.windowMs) };
     try {
+      const prefixedKey = this._prefixedKey(key);
       const expireAt = new Date(Date.now() + this.windowMs);
       const doc = await RateLimitModel.findOneAndUpdate(
-        { key: key },
+        { key: prefixedKey },
         { $inc: { hits: 1 }, $setOnInsert: { expireAt: expireAt } },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
@@ -225,13 +265,13 @@ class MongooseStore {
   async decrement(key) {
     if (mongoose.connection.readyState !== 1) return;
     try {
-      await RateLimitModel.updateOne({ key: key }, { $inc: { hits: -1 } });
+      await RateLimitModel.updateOne({ key: this._prefixedKey(key) }, { $inc: { hits: -1 } });
     } catch (err) {}
   }
   async resetKey(key) {
     if (mongoose.connection.readyState !== 1) return;
     try {
-      await RateLimitModel.deleteOne({ key: key });
+      await RateLimitModel.deleteOne({ key: this._prefixedKey(key) });
     } catch (err) {}
   }
 }
@@ -240,7 +280,7 @@ let sendLimiter, recipientLimiter, generalApiLimiter;
 
 if (!DENEME_MODU) {
   generalApiLimiter = rateLimit({
-    store: new MongooseStore(15 * 60 * 1000),
+    store: new MongooseStore(15 * 60 * 1000, "gen:"),
     windowMs: 15 * 60 * 1000, // 15 dakika
     max: 100, // 15 dakikada max 100 istek
     message: { ok: false, error: "Çok fazla istek gönderdiniz. Lütfen daha sonra tekrar deneyin." },
@@ -252,19 +292,19 @@ if (!DENEME_MODU) {
   app.use("/api/", generalApiLimiter);
 
   sendLimiter = rateLimit({
-    store: new MongooseStore(24 * 60 * 60 * 1000),
+    store: new MongooseStore(24 * 60 * 60 * 1000, "send:"),
     windowMs: 24 * 60 * 60 * 1000, // 24 saat
-    max: 3, // Günde max 3 mail
-    message: { ok: false, error: "Günlük mektup gönderme limitine (3) ulaştınız. Lütfen yarın tekrar deneyin." },
+    max: 10, // Günde max 10 mail (farklı alıcılara gönderilebilir, spam koruması alıcı bazlı recipientLimiter'da)
+    message: { ok: false, error: "Günlük mektup gönderme limitine (10) ulaştınız. Lütfen yarın tekrar deneyin." },
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip
   });
 
   recipientLimiter = rateLimit({
-    store: new MongooseStore(24 * 60 * 60 * 1000),
+    store: new MongooseStore(24 * 60 * 60 * 1000, "rcpt:"),
     windowMs: 24 * 60 * 60 * 1000, // 24 saat
-    max: 2, // Aynı alıcıya günde max 2 mail
+    max: 3, // Aynı alıcıya günde max 3 mail (spam koruması)
     standardHeaders: true,
     legacyHeaders: false,
     skipFailedRequests: true,
@@ -276,7 +316,7 @@ if (!DENEME_MODU) {
       return req.body.recipientEmail ? req.body.recipientEmail.toLowerCase().trim() : (req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip);
     },
   });
-  console.log("🛡  Mail gönderim rate limiter AKTİF (MongoDB - IP: 3/gün, Alıcı: 3/gün)");
+  console.log("🛡  Mail gönderim rate limiter AKTİF (MongoDB - IP: 10/gün, Alıcı: 3/gün)");
 } else {
   // Deneme modunda boş middleware
   sendLimiter = (req, res, next) => next();
@@ -289,8 +329,10 @@ const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: parseInt(process.env.SMTP_PORT || "587", 10),
   secure: false,
-  connectionTimeout: 8000, // 8 saniye (Vercel timeout öncesi iptal etmesi için)
-  greetingTimeout: 8000,
+  pool: true,          // Bağlantı havuzu: serverless'ta reuse sağlar
+  maxConnections: 1,   // Serverless ortamda tek bağlantı yeterli
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
   socketTimeout: 8000,
   auth: {
     user: process.env.SMTP_USER,
@@ -298,13 +340,9 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Verify SMTP on startup
-transporter.verify().then(() => {
-  console.log("✔  SMTP bağlantısı başarılı");
-}).catch((err) => {
-  console.error("✘  SMTP bağlantı hatası:", err.message);
-  console.error("   .env dosyasındaki SMTP ayarlarını kontrol edin.");
-});
+// NOT: transporter.verify() kaldırıldı — cold start'ta gereksiz gecikme yaratıyordu.
+// SMTP hataları zaten sendMail() sırasında yakalanıyor.
+console.log("📧  SMTP transporter hazır (verify atlandı — cold start optimizasyonu)");
 
 /* ───────── Message Templates (Multiple per tone) ───────── */
 const templates = require("./public/templates.js");
@@ -332,7 +370,7 @@ app.get("/api/csrf-token", (req, res) => {
   res.json({ ok: true, token });
 });
 
-app.post("/api/send", sendLimiter, recipientLimiter, async (req, res) => {
+app.post("/api/send", ensureDbConnected, sendLimiter, recipientLimiter, async (req, res) => {
   try {
     // CSRF Token doğrulaması (Double Submit Cookie)
     const cookieToken = req.cookies && req.cookies.csrf_token;
@@ -353,35 +391,14 @@ app.post("/api/send", sendLimiter, recipientLimiter, async (req, res) => {
     const spotifyLink = sanitize(req.body.spotifyLink, 500);
     const honeypot = req.body.website;
 
+    // ── Hızlı doğrulamalar (DB gerektirmeyen) ──
+
     // Görünmez Bot Koruması (Honeypot)
     if (honeypot) {
-      // Eğer bot bu gizli alanı doldurduysa isteği anında sahte (200) bir başarıyla reddediyoruz
       return res.json({ ok: true, message: "Mektubun başarıyla gönderildi! 💌", trackingId: "HB-BOTTEST" });
     }
 
-    // Spotify link güvenlik doğrulaması
-    if (spotifyLink && !isValidSpotifyUrl(spotifyLink)) {
-      return res.status(400).json({ ok: false, error: "Geçersiz Spotify linki. Sadece open.spotify.com linkleri kabul edilir." });
-    }
-
-    // Toksik İçerik / Küfür Filtresi Kontrolü (Sadece isimler için)
-    if (isToxic(senderName) || isToxic(recipientName)) {
-      return res.status(400).json({ 
-        ok: false, 
-        error: "Mesajınız topluluk kurallarımıza (hakaret/nefret söylemi) aykırı içerik barındırdığı için gönderilemedi." 
-      });
-    }
-
-    // Alıcı Blocklist (Kara Liste) Kontrolü
-    const isBlocked = await Blocklist.exists({ email: recipientEmail.toLowerCase() });
-    if (isBlocked) {
-      return res.status(403).json({
-        ok: false,
-        error: "Bu e-posta adresi sistemimizden mektup almayı reddetmiştir. Gönderim yapılamaz."
-      });
-    }
-
-    // Validation
+    // Validation (DB gerektirmeyen — hızlı red)
     if (!recipientName) {
       return res.status(400).json({ ok: false, error: "Alıcının adı gerekli." });
     }
@@ -399,6 +416,30 @@ app.post("/api/send", sendLimiter, recipientLimiter, async (req, res) => {
     }
     if (!req.body.consentGiven) {
       return res.status(400).json({ ok: false, error: "Lütfen Yasal İzinleri onaylayın." });
+    }
+
+    // Spotify link güvenlik doğrulaması
+    if (spotifyLink && !isValidSpotifyUrl(spotifyLink)) {
+      return res.status(400).json({ ok: false, error: "Geçersiz Spotify linki. Sadece open.spotify.com linkleri kabul edilir." });
+    }
+
+    // Toksik İçerik / Küfür Filtresi Kontrolü (Sadece isimler için)
+    if (isToxic(senderName) || isToxic(recipientName)) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: "Mesajınız topluluk kurallarımıza (hakaret/nefret söylemi) aykırı içerik barındırdığı için gönderilemedi." 
+      });
+    }
+
+    // ── DB gerektiren kontroller ──
+
+    // Alıcı Blocklist (Kara Liste) Kontrolü
+    const isBlocked = await Blocklist.exists({ email: recipientEmail.toLowerCase() });
+    if (isBlocked) {
+      return res.status(403).json({
+        ok: false,
+        error: "Bu e-posta adresi sistemimizden mektup almayı reddetmiştir. Gönderim yapılamaz."
+      });
     }
 
     // Build the message (from server-side template)
@@ -430,35 +471,34 @@ app.post("/api/send", sendLimiter, recipientLimiter, async (req, res) => {
     // Build HTML version
     const htmlBody = buildHtmlEmail(subject, body, mode === "anonymous", spotifyLink, trackingId, serverUrl, recipientEmail);
 
-    // Save tracking data to MongoDB FIRST
-    // Bu sayede veritabanı bağlantısı kopuksa boşuna mail atılmaz.
-    await Letter.create({
+    // ── Optimized Flow: Önce mail gönder, başarılıysa DB'ye kaydet ──
+    // Eski akış: Letter.create → sendMail → hata olursa Letter.delete (2 DB işlemi)
+    // Yeni akış: sendMail → Letter.create (1 DB işlemi, daha hızlı)
+
+    await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to: recipientEmail,
+      replyTo: mode === "named" && senderName ? undefined : `"No Reply" <noreply@hadibarisalim.com>`,
+      subject: subject,
+      text: body,
+      html: htmlBody,
+      messageId: `<${trackingId}@hadibarisalim.com>`,
+      headers: {
+        "X-Entity-Ref-ID": trackingId,
+        "List-Unsubscribe": `<${serverUrl}/api/unsubscribe>`
+      }
+    });
+
+    // Mail başarıyla gönderildiyse tracking kaydını oluştur
+    // (Hata olursa mail zaten gitmiştir, tracking kaydı olmasa da sorun değil)
+    Letter.create({
       trackingId: trackingId,
       status: "sent",
       sentAt: new Date(),
       readAt: null
+    }).catch((dbErr) => {
+      console.error(`⚠  Tracking kaydı oluşturulamadı [${trackingId}]:`, dbErr.message);
     });
-
-    try {
-      // Send mail
-      await transporter.sendMail({
-        from: `"${fromName}" <${fromEmail}>`,
-        to: recipientEmail,
-        replyTo: mode === "named" && senderName ? undefined : `"No Reply" <noreply@hadibarisalim.com>`,
-        subject: subject,
-        text: body, // plain text doesn't have spotify button or pixel
-        html: htmlBody,
-        messageId: `<${trackingId}@hadibarisalim.com>`,
-        headers: {
-          "X-Entity-Ref-ID": trackingId,
-          "List-Unsubscribe": `<${serverUrl}/api/unsubscribe>`
-        }
-      });
-    } catch (mailErr) {
-      // Mail gitmezse veritabanındaki kaydı silelim ki tutarsızlık olmasın
-      await Letter.deleteOne({ trackingId: trackingId }).catch(() => {});
-      throw mailErr; // Dışarıdaki ana catch bloğuna fırlatalım
-    }
 
     console.log(
       `✉  Mail gönderildi → ${recipientEmail} (${mode}, ${tone}) [ID: ${trackingId}]`
@@ -479,7 +519,7 @@ app.post("/api/send", sendLimiter, recipientLimiter, async (req, res) => {
 });
 
 /* ───────── API: Unsubscribe ───────── */
-app.get("/api/unsubscribe", async (req, res) => {
+app.get("/api/unsubscribe", ensureDbConnected, async (req, res) => {
   const { email, token } = req.query;
   if (!email || !token) {
     return res.status(400).send("Eksik parametre.");
@@ -617,7 +657,7 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
 const trackingIdRegex = /^HB-([A-F0-9]{4}|[A-F0-9]{8})$/i;
 
 /* ───────── API: Tracking Pixel ───────── */
-app.get("/api/track/:id/pixel.gif", async (req, res) => {
+app.get("/api/track/:id/pixel.gif", ensureDbConnected, async (req, res) => {
   const id = req.params.id;
   const userAgent = (req.headers["user-agent"] || "").toLowerCase();
   const ip = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
@@ -674,7 +714,7 @@ app.get("/api/track/:id/pixel.gif", async (req, res) => {
 /* Güvenlik: Sadece güvenilir domainlere yönlendirme — Open Redirect engellendi */
 const ALLOWED_REDIRECT_DOMAINS = ["open.spotify.com"];
 
-app.get("/api/track/:id/click", async (req, res) => {
+app.get("/api/track/:id/click", ensureDbConnected, async (req, res) => {
   const id = req.params.id;
   const targetUrl = req.query.url;
 
@@ -710,7 +750,7 @@ app.get("/api/track/:id/click", async (req, res) => {
 });
 
 /* ───────── API: Check Status ───────── */
-app.get("/api/track/:id", async (req, res) => {
+app.get("/api/track/:id", ensureDbConnected, async (req, res) => {
   try {
     const id = req.params.id;
 
@@ -757,7 +797,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 /* ───────── API: Migrate Legacy Data (Secret Key ile korumalı) ───────── */
-app.get("/api/migrate", async (req, res) => {
+app.get("/api/migrate", ensureDbConnected, async (req, res) => {
   // Güvenlik: Sadece .env'de tanımlı secret key ile çalışır — hardcoded fallback YOK
   const secret = req.query.key || req.headers["x-migrate-key"];
   if (!process.env.MIGRATE_SECRET) {

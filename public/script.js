@@ -55,13 +55,26 @@
   var csrfToken = null; // CSRF token sunucudan alınacak
 
   /* ───────── CSRF Token ───────── */
+  var csrfRetryCount = 0;
+  var MAX_CSRF_RETRIES = 2;
+
   async function fetchCsrfToken() {
     try {
       var response = await fetch("/api/csrf-token", { credentials: "same-origin" });
       var data = await response.json();
-      if (data.ok) csrfToken = data.token;
+      if (data.ok) {
+        csrfToken = data.token;
+        csrfRetryCount = 0; // Başarılıysa sayacı sıfırla
+      } else {
+        throw new Error("Token alınamadı");
+      }
     } catch (err) {
-      console.warn("CSRF token alınamadı, yeniden denenecek.");
+      console.warn("CSRF token alınamadı (deneme " + (csrfRetryCount + 1) + "/" + (MAX_CSRF_RETRIES + 1) + ")");
+      if (csrfRetryCount < MAX_CSRF_RETRIES) {
+        csrfRetryCount++;
+        // 1sn sonra tekrar dene
+        setTimeout(fetchCsrfToken, 1000);
+      }
     }
   }
   // Sayfa yüklenince token al
@@ -242,11 +255,25 @@
     els.sendBtnSpinner.hidden = false;
     els.sendBtn.disabled = true;
 
+    // CSRF token yoksa gönderimden önce al
+    if (!csrfToken) {
+      await fetchCsrfToken();
+      if (!csrfToken) {
+        showToast("Güvenlik doğrulaması başarısız. Lütfen sayfayı yenileyin.", "error");
+        return;
+      }
+    }
+
     try {
+      // AbortController ile 15sn timeout (Vercel'in 10sn timeout'undan biraz uzun)
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+
       var response = await fetch("/api/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
+        signal: controller.signal,
         body: JSON.stringify({
           recipientName: recipientName,
           recipientEmail: recipientEmail,
@@ -260,6 +287,8 @@
           _csrf: csrfToken
         })
       });
+
+      clearTimeout(timeoutId);
 
       var data = await response.json();
 
@@ -293,7 +322,11 @@
         showToast(data.error || "Bir hata oluştu.", "error");
       }
     } catch (err) {
-      showToast("Bağlantı hatası. Lütfen tekrar deneyin.", "error");
+      if (err.name === "AbortError") {
+        showToast("İstek zaman aşımına uğradı. Sunucu yoğun olabilir, lütfen birkaç saniye sonra tekrar deneyin.", "error");
+      } else {
+        showToast("Bağlantı hatası. Lütfen tekrar deneyin.", "error");
+      }
     } finally {
       // Reset loading state
       isSending = false;
