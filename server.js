@@ -471,34 +471,31 @@ app.post("/api/send", ensureDbConnected, sendLimiter, recipientLimiter, async (r
     // Build HTML version
     const htmlBody = buildHtmlEmail(subject, body, mode === "anonymous", spotifyLink, trackingId, serverUrl, recipientEmail);
 
-    // ── Optimized Flow: Önce mail gönder, başarılıysa DB'ye kaydet ──
-    // Eski akış: Letter.create → sendMail → hata olursa Letter.delete (2 DB işlemi)
-    // Yeni akış: sendMail → Letter.create (1 DB işlemi, daha hızlı)
-
-    await transporter.sendMail({
-      from: `"${fromName}" <${fromEmail}>`,
-      to: recipientEmail,
-      replyTo: mode === "named" && senderName ? undefined : `"No Reply" <noreply@hadibarisalim.com>`,
-      subject: subject,
-      text: body,
-      html: htmlBody,
-      messageId: `<${trackingId}@hadibarisalim.com>`,
-      headers: {
-        "X-Entity-Ref-ID": trackingId,
-        "List-Unsubscribe": `<${serverUrl}/api/unsubscribe>`
-      }
-    });
-
-    // Mail başarıyla gönderildiyse tracking kaydını oluştur
-    // (Hata olursa mail zaten gitmiştir, tracking kaydı olmasa da sorun değil)
-    Letter.create({
+    // ── DB kayıt (Mail gönderilmeden hemen önce yapıyoruz ki Google Cache Proxy anında sorgularsa bulabilsin) ──
+    await Letter.create({
       trackingId: trackingId,
       status: "sent",
       sentAt: new Date(),
       readAt: null
-    }).catch((dbErr) => {
-      console.error(`⚠  Tracking kaydı oluşturulamadı [${trackingId}]:`, dbErr.message);
     });
+
+    try {
+      await transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: recipientEmail,
+        replyTo: mode === "named" && senderName ? undefined : `"No Reply" <noreply@hadibarisalim.com>`,
+        subject: subject,
+        text: body,
+        html: htmlBody,
+        messageId: `<${trackingId}@hadibarisalim.com>`,
+        headers: {
+          "X-Entity-Ref-ID": trackingId
+        }
+      });
+    } catch (mailErr) {
+      await Letter.deleteOne({ trackingId: trackingId }).catch(() => {});
+      throw mailErr;
+    }
 
     console.log(
       `✉  Mail gönderildi → ${recipientEmail} (${mode}, ${tone}) [ID: ${trackingId}]`
@@ -584,25 +581,21 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
   const paragraphs = textBody
     .split("\n\n")
     .map((p) => escapeHtml(p).replace(/\n/g, "<br>"))
-    .map((p) => `<p style="margin:0 0 16px;line-height:1.7;color:#2B211B;">${p}</p>`)
+    .map((p) => `<p style="margin:0 0 16px;line-height:1.6;">${p}</p>`)
     .join("");
 
   const safeSpotifyLink = spotifyLink ? escapeHtml(spotifyLink) : "";
   const trackedSpotifyLink = safeSpotifyLink ? `${serverUrl}/api/track/${trackingId}/click?url=${encodeURIComponent(safeSpotifyLink)}` : "";
   
   const spotifyHtml = safeSpotifyLink
-    ? `<div style="margin: 32px 0; text-align: center;">
-         <a href="${trackedSpotifyLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #C9A15B; color: #1E1520; text-decoration: none; padding: 12px 24px; border-radius: 999px; font-weight: bold; font-family: -apple-system, sans-serif; font-size: 14px;">
-           🎵 Bu mektuba eklenen şarkıyı dinle
-         </a>
-       </div>`
+    ? `<p style="margin: 24px 0;"><a href="${trackedSpotifyLink}" target="_blank" rel="noopener noreferrer" style="color: #1a73e8; text-decoration: none;">🎵 Bu mesaja eklenen şarkıyı dinle</a></p>`
     : "";
 
   const footerText = isAnonymous 
-    ? "Bu e-posta, hadibarisalim.com platformu aracılığıyla bir kullanıcımız tarafından anonim olarak oluşturulmuş ve size iletilmiştir. Platformumuz, insanların içlerinden geçenleri dürüstçe yazabilmeleri için güvenli bir iletişim köprüsü kurmayı amaçlar." 
-    : "Bu e-posta, hadibarisalim.com platformu aracılığıyla oluşturulmuş ve size iletilmiştir. Platformumuz, insanların içlerinden geçenleri dürüstçe yazabilmeleri için güvenli bir iletişim köprüsü kurmayı amaçlar.";
+    ? "Bu mesaj bir kullanıcı tarafından size anonim olarak iletilmiştir." 
+    : "Bu mesaj bir kullanıcı tarafından size iletilmiştir.";
 
-  // Generate Unsubscribe Link (SESSION_SECRET yoksa link oluşturma — sessiz degrade)
+  // Generate Unsubscribe Link (gizli ve sade)
   const sessionSecret = process.env.SESSION_SECRET;
   let unsubscribeLink = "";
   if (sessionSecret) {
@@ -612,40 +605,22 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
   }
 
   const footer = `
-    <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
-    <p style="margin:0 0 8px;font-size:11px;color:#8A7A63;opacity:0.8;">
-      Bu tür mektupların doğası gereği kişisel olduğunu hatırlatmak isteriz. Eğer bu mesajı bir hata sonucu aldığınızı düşünüyorsanız veya gelecekte sistemimiz üzerinden bir daha e-posta almak istemiyorsanız, <a href="${unsubscribeLink}" style="color:#C9A15B;text-decoration:underline;">buraya tıklayarak e-posta adresinizi engelleyebilirsiniz</a>. 
-      Güvenliğiniz ve gizliliğiniz için sistemimiz katı gönderim limitleriyle korunmaktadır.
-    </p>
-    <p style="margin:0;font-size:10px;color:#8A7A63;opacity:0.6;">
-      Yasal Bildirim: Gönderici, bu platformun Kullanım Koşulları'nı kabul etmiş ve bu e-postanın size gönderilmesi için açık rıza (KVKK) göstermiştir.
-    </p>`;
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999;">
+      <p style="margin: 0 0 8px;">--<br>${footerText}</p>
+      <p style="margin: 0;">Yanlışlıkla aldıysanız <a href="${unsubscribeLink}" style="color: #ccc; text-decoration: none;">engellemek için tıklayın</a>.</p>
+    </div>`;
 
-  const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" border="0" style="display:block; border:none; outline:none; text-decoration:none;" alt="" />`;
+  const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" border="0" style="display:block; border:none; outline:none; text-decoration:none; opacity: 0;" alt="" />`;
 
   return `
 <!DOCTYPE html>
 <html lang="tr">
 <head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#1E1520;font-family:'Georgia',serif;">
-  <div style="max-width:580px;margin:40px auto;background:#F6EEE1;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#1E1520,#2A1E2C);padding:32px 40px;text-align:center;">
-      <h1 style="margin:0;font-family:'Georgia',serif;font-size:24px;color:#E7C685;font-weight:normal;font-style:italic;">
-        Hadi <em>Barış</em><span style="color:#C9A15B;">alım</span>
-      </h1>
-      <div style="width:80px;height:2px;background:linear-gradient(90deg,transparent,#C9A15B,transparent);margin:16px auto 0;"></div>
-    </div>
-    <!-- Body -->
-    <div style="padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:16px;">
-      ${paragraphs}
-      ${spotifyHtml}
-    </div>
-    <!-- Footer -->
-    <div style="padding:0 40px 32px;text-align:center;">
-      <div style="height:1px;background:linear-gradient(90deg,transparent,#D9C8AA,transparent);margin-bottom:20px;"></div>
-      ${footer}
-    </div>
+<body style="margin:0;padding:20px;background:#ffffff;font-family:sans-serif,Arial;color:#222;">
+  <div style="max-width:600px;font-size:15px;">
+    ${paragraphs}
+    ${spotifyHtml}
+    ${footer}
   </div>
   ${trackingPixel}
 </body>
@@ -691,16 +666,14 @@ app.get("/api/track/:id/pixel.gif", ensureDbConnected, async (req, res) => {
       console.log(`[PIXEL HIT] ID: ${id} | TimeDiff: ${timeDiffMs}ms | IP: ${ip} | UA: ${userAgent}`);
 
       if (letter.status !== "read") {
-        // E-posta gönderildikten sonraki süre kontrolü (5sn'den 1.5sn'ye düşürüldü)
-        // Gerçek kullanıcıların anında açması durumunda kaçırılmaması için
-        if (!isBot && timeDiffMs > 1500) {
-          letter.status = "read";
-          letter.readAt = new Date();
-          await letter.save();
-          console.log(`👁  Mektup okundu (Pixel) [ID: ${id}]`);
-        } else {
-          console.log(`[PIXEL IGNORED] ID: ${id} | isBot: ${isBot} | timeDiffMs: ${timeDiffMs}`);
-        }
+        // Not: Google Image Proxy ve Apple Mail gibi servisler maili alır almaz
+        // resmi pre-fetch (önbellekleme) yaparlar. Cache'lendiğinde gerçek okumayı
+        // asla göremeyeceğimiz için bu ilk vuruşu "Okundu (Teslim Edildi/Tasarlandı)"
+        // olarak kabul ediyoruz. isBot ve zaman kısıtlamalarını kaldırdık.
+        letter.status = "read";
+        letter.readAt = new Date();
+        await letter.save();
+        console.log(`👁  Mektup okundu/önbelleklendi (Pixel) [ID: ${id}]`);
       }
     }
   } catch (err) {
