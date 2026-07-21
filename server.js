@@ -608,6 +608,10 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
 
   const footer = `
     <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
+    <p style="margin:0 0 16px;font-size:12px;color:#8A7A63;">
+      Siz de birine içindekileri yazmak isterseniz ziyaret edin: <br>
+      <a href="https://hadi-barisalim.vercel.app" style="color:#C9A15B;text-decoration:none;font-weight:bold;">https://hadi-barisalim.vercel.app</a>
+    </p>
     <p style="margin:0 0 8px;font-size:11px;color:#8A7A63;opacity:0.8;">
       Eğer bu mesajı yanlışlıkla aldığınızı düşünüyorsanız veya bir daha e-posta almak istemiyorsanız, <a href="${unsubscribeLink}" style="color:#C9A15B;text-decoration:underline;">buraya tıklayarak engelleyebilirsiniz</a>.
     </p>`;
