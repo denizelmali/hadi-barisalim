@@ -622,8 +622,8 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
   <div style="max-width:580px;margin:40px auto;background:#F6EEE1;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#1E1520,#2A1E2C);padding:32px 40px;text-align:center;">
-      <h1 style="margin:0;font-family:'Georgia',serif;font-size:24px;color:#E7C685;font-weight:normal;font-style:italic;">
-        Hadi <em>Barış</em><span style="color:#C9A15B;">alım</span>
+      <h1 style="margin:0;font-family:'Georgia',serif;font-size:24px;font-weight:normal;font-style:italic;">
+        <a href="${serverUrl}" style="color:#E7C685;text-decoration:none;">Hadi <em>Barış</em><span style="color:#C9A15B;">alım</span></a>
       </h1>
       <div style="width:80px;height:2px;background:linear-gradient(90deg,transparent,#C9A15B,transparent);margin:16px auto 0;"></div>
     </div>
