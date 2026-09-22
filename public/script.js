@@ -420,10 +420,14 @@
           var msg = "";
           if (statusObj.status === "read") {
             var date = new Date(statusObj.readAt).toLocaleString("tr-TR");
-            msg = "👁️ Mektubun " + date + " tarihinde okundu!";
+            msg = "\uD83D\uDC41\uFE0F Mektubun " + date + " tarihinde okundu!";
+            showTrackingResult(msg, "success");
+          } else if (statusObj.status === "delivered") {
+            var delDate = new Date(statusObj.deliveredAt || statusObj.sentAt).toLocaleString("tr-TR");
+            msg = "\uD83D\uDCEC Mektubun teslim edildi ama hen\u00FCz a\u00E7\u0131lmad\u0131. (" + delDate + " itibar\u0131yla)";
             showTrackingResult(msg, "success");
           } else {
-            msg = "📬 Mektubun yolda veya henüz açılmadı.";
+            msg = "\uD83D\uDCEB Mektubun yolda, hen\u00FCz teslim edilmedi.";
             showTrackingResult(msg, "success");
           }
         } else {

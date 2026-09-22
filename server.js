@@ -19,7 +19,10 @@ const crypto = require("crypto");
 const mongoose = require("mongoose");
 const { isToxic } = require("./utils/moderation");
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
+
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
 
 /* ───────── CSRF Token Sistemi (Double Submit Cookie) ───────── */
 const CSRF_TOKEN_EXPIRY = 30 * 60 * 1000; // 30 dakika
@@ -134,18 +137,55 @@ mongoose.connection.on("disconnected", () => { isDbConnected = false; });
 const letterSchema = new mongoose.Schema({
   trackingId: { type: String, required: true, unique: true },
   status: { type: String, required: true, default: "sent" },
+  // Durum geçişleri: sent → delivered → read
+  // delivered: Mail teslim edildi (Google/Apple proxy tarafından önbelleğe alındı)
+  // read: Gerçek kullanıcı maili açtı (proxy eşiği aşıldı veya bot UA değil)
   sentAt: { type: Date, required: true, default: Date.now, expires: '30d' }, // KVKK: 30 gün sonra otomatik sil (TTL)
+  deliveredAt: { type: Date, default: null },
   readAt: { type: Date, default: null }
 });
 
 const Letter = mongoose.model("Letter", letterSchema);
+
+// Asla kara listeye eklenmeyecek / engellenmeyecek korumalı e-postalar
+const EXEMPT_EMAILS = [
+  "asyaktas2525@gmail.com",
+  ...(process.env.EXEMPT_EMAILS ? process.env.EXEMPT_EMAILS.split(",").map(e => e.trim().toLowerCase()) : [])
+].map(e => e.toLowerCase().trim());
 
 const blocklistSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   blockedAt: { type: Date, default: Date.now }
 });
 
+// Korumalı e-postaların veritabanına eklenmesini önle
+blocklistSchema.pre("save", function() {
+  if (EXEMPT_EMAILS.includes((this.email || "").toLowerCase().trim())) {
+    throw new Error("Bu e-posta adresi korumalı listededir ve kara listeye eklenemez.");
+  }
+});
+
+blocklistSchema.pre(["updateOne", "findOneAndUpdate", "updateMany"], function() {
+  const update = this.getUpdate();
+  const target = (update?.$set?.email || update?.email || (this.getQuery() && this.getQuery().email) || "").toLowerCase().trim();
+  if (EXEMPT_EMAILS.includes(target)) {
+    throw new Error("Bu e-posta adresi korumalı listededir ve kara listeye eklenemez.");
+  }
+});
+
 const Blocklist = mongoose.model("Blocklist", blocklistSchema);
+
+// Korumalı e-postaların veritabanında kalmadığından emin ol (otomatik temizlik)
+async function cleanupExemptEmails() {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      await Blocklist.deleteMany({ email: { $in: EXEMPT_EMAILS } });
+    }
+  } catch (err) {
+    console.error("Exempt emails cleanup error:", err.message);
+  }
+}
+mongoose.connection.on("connected", cleanupExemptEmails);
 
 function generateTrackingId() {
   return "HB-" + crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -186,6 +226,9 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com"],
         scriptSrc: ["'self'"],
@@ -434,7 +477,8 @@ app.post("/api/send", ensureDbConnected, sendLimiter, recipientLimiter, async (r
     // ── DB gerektiren kontroller ──
 
     // Alıcı Blocklist (Kara Liste) Kontrolü
-    const isBlocked = await Blocklist.exists({ email: recipientEmail.toLowerCase() });
+    const isExempt = EXEMPT_EMAILS.includes(recipientEmail.toLowerCase().trim());
+    const isBlocked = !isExempt && await Blocklist.exists({ email: recipientEmail.toLowerCase().trim() });
     if (isBlocked) {
       return res.status(403).json({
         ok: false,
@@ -465,9 +509,20 @@ app.post("/api/send", ensureDbConnected, sendLimiter, recipientLimiter, async (r
     const trackingId = generateTrackingId();
     const protocol = req.headers["x-forwarded-proto"] || req.protocol;
     const serverUrl = `${protocol}://${req.get("host")}`;
+    // SITE_URL: canonical domain (ör: https://hadibarisalim.com). Tanımlı değilse serverUrl kullan.
+    const siteUrl = (process.env.SITE_URL || serverUrl).replace(/\/$/, "");
+
+    // Unsubscribe linkini önceden hesapla (hem HTML email'de hem de header'da kullanılacak)
+    const sessionSecret = process.env.SESSION_SECRET;
+    let unsubscribeLink = "";
+    if (sessionSecret) {
+      const hmac = crypto.createHmac("sha256", sessionSecret);
+      const unsubscribeToken = hmac.update(recipientEmail).digest("hex");
+      unsubscribeLink = `${serverUrl}/api/unsubscribe?email=${encodeURIComponent(recipientEmail)}&token=${unsubscribeToken}`;
+    }
 
     // Build HTML version
-    const htmlBody = buildHtmlEmail(subject, body, mode === "anonymous", spotifyLink, trackingId, serverUrl, recipientEmail);
+    const htmlBody = buildHtmlEmail(subject, body, mode === "anonymous", spotifyLink, trackingId, serverUrl, siteUrl, recipientEmail, unsubscribeLink);
 
     // ── DB kayıt (Mail gönderilmeden hemen önce yapıyoruz ki Google Cache Proxy anında sorgularsa bulabilsin) ──
     await Letter.create({
@@ -478,16 +533,24 @@ app.post("/api/send", ensureDbConnected, sendLimiter, recipientLimiter, async (r
     });
 
     try {
+      // ── Mail Header Notları ──
+      // replyTo: Kaldırıldı — noreply@hadibarisalim.com adresi gerçek değil ve Gmail'den
+      //   farklı bir domain ile Reply-To göndermek spam filtrelerini tetikliyor (domain uyumsuzluğu).
+      // messageId: Kaldırıldı — Nodemailer RFC 5322 uyumlu Message-ID otomatik oluşturuyor.
+      //   Manuel override, gönderen domain ile uyumsuzluk yaratarak spam skorunu artırıyordu.
+      // List-Unsubscribe: Gmail ve Yahoo 2024'te bulk sender'lar için zorunlu kıldı.
       await transporter.sendMail({
         from: `"${fromName}" <${fromEmail}>`,
         to: recipientEmail,
-        replyTo: mode === "named" && senderName ? undefined : `"No Reply" <noreply@hadibarisalim.com>`,
         subject: subject,
         text: body,
         html: htmlBody,
-        messageId: `<${trackingId}@hadibarisalim.com>`,
         headers: {
-          "X-Entity-Ref-ID": trackingId
+          "X-Entity-Ref-ID": trackingId,
+          ...(unsubscribeLink && {
+            "List-Unsubscribe": `<${unsubscribeLink}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          }),
         }
       });
     } catch (mailErr) {
@@ -539,6 +602,32 @@ app.get("/api/unsubscribe", ensureDbConnected, async (req, res) => {
     return res.status(403).send("Geçersiz doğrulama bağlantısı.");
   }
 
+  const normalizedEmail = email.toLowerCase().trim();
+  if (EXEMPT_EMAILS.includes(normalizedEmail)) {
+    return res.send(`
+      <!DOCTYPE html>
+      <html lang="tr">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Korumalı Adres — Hadi Barışalım</title>
+        <style>
+          body { font-family: -apple-system, sans-serif; background: #1E1520; color: #F6EEE1; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; padding: 20px; }
+          .card { background: #2A1E2C; padding: 40px; border-radius: 12px; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+          h1 { color: #E7C685; margin-top: 0; }
+          p { color: #c4b5c7; line-height: 1.6; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>Bilgilendirme</h1>
+          <p><b>${escapeHtml(email)}</b> adresi korumalı listededir ve kara listeye eklenemez.</p>
+        </div>
+      </body>
+      </html>
+    `);
+  }
+
   try {
     await Blocklist.updateOne(
       { email: email.toLowerCase() },
@@ -575,7 +664,11 @@ app.get("/api/unsubscribe", ensureDbConnected, async (req, res) => {
 });
 
 /* ───────── HTML Email Builder ───────── */
-function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId, serverUrl, recipientEmail) {
+// unsubscribeLink artık dışarıdan parametre olarak alınıyor —
+// /api/send endpoint'inde hem header'a hem HTML'e aynı link kullanılıyor.
+// siteUrl: Canonical site adresi (footer ve header linkleri için).
+//   Vercel'de serverUrl ile aynı; custom domain varsa SITE_URL env var'ından gelir.
+function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId, serverUrl, siteUrl, recipientEmail, unsubscribeLink) {
   const paragraphs = textBody
     .split("\n\n")
     .map((p) => escapeHtml(p).replace(/\n/g, "<br>"))
@@ -597,20 +690,12 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
     ? "Bu mesaj bir kullanıcımız tarafından size anonim olarak iletilmiştir." 
     : "Bu mesaj bir kullanıcımız tarafından size iletilmiştir.";
 
-  // Generate Unsubscribe Link
-  const sessionSecret = process.env.SESSION_SECRET;
-  let unsubscribeLink = "";
-  if (sessionSecret) {
-    const hmac = crypto.createHmac("sha256", sessionSecret);
-    const unsubscribeToken = hmac.update(recipientEmail).digest("hex");
-    unsubscribeLink = `${serverUrl}/api/unsubscribe?email=${encodeURIComponent(recipientEmail)}&token=${unsubscribeToken}`;
-  }
-
+  // unsubscribeLink parametreden alınıyor — /api/send'de hesaplanıyor ve List-Unsubscribe header'ıyla senkronize
   const footer = `
     <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
     <p style="margin:0 0 16px;font-size:12px;color:#8A7A63;">
       Siz de birine içindekileri yazmak isterseniz ziyaret edin: <br>
-      <a href="https://hadi-barisalim.vercel.app" style="color:#C9A15B;text-decoration:none;font-weight:bold;">https://hadi-barisalim.vercel.app</a>
+      <a href="${siteUrl}" style="color:#C9A15B;text-decoration:none;font-weight:bold;">${siteUrl.replace(/^https?:\/\//, '')}</a>
     </p>
     <p style="margin:0 0 8px;font-size:11px;color:#8A7A63;opacity:0.8;">
       Eğer bu mesajı yanlışlıkla aldığınızı düşünüyorsanız veya bir daha e-posta almak istemiyorsanız, <a href="${unsubscribeLink}" style="color:#C9A15B;text-decoration:underline;">buraya tıklayarak engelleyebilirsiniz</a>.
@@ -627,7 +712,7 @@ function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId,
     <!-- Header -->
     <div style="background:linear-gradient(135deg,#1E1520,#2A1E2C);padding:32px 40px;text-align:center;">
       <h1 style="margin:0;font-family:'Georgia',serif;font-size:24px;font-weight:normal;font-style:italic;">
-        <a href="${serverUrl}" style="color:#E7C685;text-decoration:none;">Hadi <em>Barış</em><span style="color:#C9A15B;">alım</span></a>
+        <a href="${siteUrl}" style="color:#E7C685;text-decoration:none;">Hadi <em>Barış</em><span style="color:#C9A15B;">alım</span></a>
       </h1>
       <div style="width:80px;height:2px;background:linear-gradient(90deg,transparent,#C9A15B,transparent);margin:16px auto 0;"></div>
     </div>
@@ -680,20 +765,42 @@ app.get("/api/track/:id/pixel.gif", ensureDbConnected, async (req, res) => {
   try {
     const letter = await Letter.findOne({ trackingId: id });
     if (letter) {
-      const isBot = /bot|spider|crawl|scan|virus|barracuda|mimecast|proofpoint|appengine/i.test(userAgent);
       const timeDiffMs = Date.now() - new Date(letter.sentAt).getTime();
-      
-      console.log(`[PIXEL HIT] ID: ${id} | TimeDiff: ${timeDiffMs}ms | IP: ${ip} | UA: ${userAgent}`);
 
-      if (letter.status !== "read") {
-        // Not: Google Image Proxy ve Apple Mail gibi servisler maili alır almaz
-        // resmi pre-fetch (önbellekleme) yaparlar. Cache'lendiğinde gerçek okumayı
-        // asla göremeyeceğimiz için bu ilk vuruşu "Okundu (Teslim Edildi/Tasarlandı)"
-        // olarak kabul ediyoruz. isBot ve zaman kısıtlamalarını kaldırdık.
-        letter.status = "read";
-        letter.readAt = new Date();
-        await letter.save();
-        console.log(`👁  Mektup okundu/önbelleklendi (Pixel) [ID: ${id}]`);
+      // Google Image Proxy, Apple Mail Privacy Protection ve diğer güvenlik
+      // proxy'leri maili kullanıcı açmadan önce resmi önbelleğe alır.
+      // Bu vuruşu "read" (okundu) saymak yerine "delivered" (teslim edildi) olarak işaretliyoruz.
+      //
+      // Proxy tespiti kriterleri (ikisi birden gerekli değil — biri yeterliyse proxy sayılır):
+      //   1. Bilinen proxy/bot User-Agent (Google, Apple, Barracuda, Mimecast, Proofpoint...)
+      //   2. Mail gönderildikten sonraki 45 saniye içindeki vuruş
+      //      (gerçek kullanıcıların bu kadar kısa sürede açması istatistiksel olarak nadirdir)
+      const PROXY_TIME_THRESHOLD_MS = 45 * 1000; // 45 saniye
+      const isKnownProxy = /googleimageproxy|googlebot|applemailprivacyprotection|apple|bot|spider|crawl|scan|virus|barracuda|mimecast|proofpoint|appengine|preview|prefetch|validator|slack|discord|whatsapp|telegram|linkedin/i.test(userAgent);
+      const isEarlyHit = timeDiffMs < PROXY_TIME_THRESHOLD_MS;
+      const isProxy = isKnownProxy || isEarlyHit;
+
+      console.log(
+        `[PIXEL HIT] ID: ${id} | TimeDiff: ${timeDiffMs}ms | isProxy: ${isProxy} ` +
+        `(knownUA: ${isKnownProxy}, earlyHit: ${isEarlyHit}) | IP: ${ip} | UA: ${userAgent}`
+      );
+
+      if (isProxy) {
+        // Proxy vuruşu: "sent" → "delivered" (henüz okunmadı)
+        if (letter.status === "sent") {
+          letter.status = "delivered";
+          letter.deliveredAt = new Date();
+          await letter.save();
+          console.log(`📬  Mektup teslim edildi (Proxy önbellekleme) [ID: ${id}]`);
+        }
+      } else {
+        // Gerçek kullanıcı vuruşu: "delivered" veya "sent" → "read"
+        if (letter.status !== "read") {
+          letter.status = "read";
+          letter.readAt = new Date();
+          await letter.save();
+          console.log(`👁  Mektup okundu (Gerçek kullanıcı) [ID: ${id}]`);
+        }
       }
     }
   } catch (err) {
@@ -765,6 +872,7 @@ app.get("/api/track/:id", ensureDbConnected, async (req, res) => {
         trackingId: letter.trackingId,
         status: letter.status,
         sentAt: letter.sentAt,
+        deliveredAt: letter.deliveredAt,
         readAt: letter.readAt
       }
     });
@@ -839,12 +947,30 @@ app.use((req, res) => {
 
 /* ───────── Start ───────── */
 let server;
+
+function startServer(port = PORT) {
+  server = app.listen(port, "0.0.0.0", () => {
+    console.log(`\n🕊  Hadi Barışalım sunucusu çalışıyor → http://localhost:${port}\n`);
+  });
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      const fallbackPort = port + 1;
+      console.warn(`⚠️  Port ${port} kullanımda. ${fallbackPort} portuna yeniden deneniyor...`);
+      server.close(() => {
+        startServer(fallbackPort);
+      });
+      return;
+    }
+
+    console.error("Sunucu başlatılırken hata oluştu:", err);
+    process.exit(1);
+  });
+}
+
 // Vercel ortamı değilse sunucuyu başlat (Vercel serverless için export gerekli)
 if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
-  const PORT = process.env.PORT || 3000;
-  server = app.listen(PORT, () => {
-    console.log(`\n🕊  Hadi Barışalım sunucusu çalışıyor → http://localhost:${PORT}\n`);
-  });
+  startServer(PORT);
 }
 
 module.exports = app;
