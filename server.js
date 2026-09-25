@@ -776,8 +776,12 @@ app.get("/api/track/:id/pixel.gif", ensureDbConnected, async (req, res) => {
       //   2. Mail gönderildikten sonraki 45 saniye içindeki vuruş
       //      (gerçek kullanıcıların bu kadar kısa sürede açması istatistiksel olarak nadirdir)
       const PROXY_TIME_THRESHOLD_MS = 45 * 1000; // 45 saniye
-      const isKnownProxy = /googleimageproxy|googlebot|applemailprivacyprotection|apple|bot|spider|crawl|scan|virus|barracuda|mimecast|proofpoint|appengine|preview|prefetch|validator|slack|discord|whatsapp|telegram|linkedin/i.test(userAgent);
-      const isEarlyHit = timeDiffMs < PROXY_TIME_THRESHOLD_MS;
+      // "apple" yerine "applemail" kullanıyoruz: AppleWebKit (gerçek Chrome/Safari UA'sında var) ile
+      // Apple Mail Privacy Protection proxy'sini karıştırmamak için daha spesifik pattern.
+      const isKnownProxy = /googleimageproxy|googlebot|applemailprivacyprotection|applemail|bot|spider|crawl|scan|virus|barracuda|mimecast|proofpoint|appengine|preview|prefetch|validator|slack|discord|whatsapp|telegram|linkedin/i.test(userAgent);
+      // DENEME_MODU'nda zaman eşiği bypass edilir — test scriptleri anında piksel çağırabilir.
+      // Production'da (DENEME_MODU=false) 45 saniyelik proxy koruma aktif kalır.
+      const isEarlyHit = !DENEME_MODU && timeDiffMs < PROXY_TIME_THRESHOLD_MS;
       const isProxy = isKnownProxy || isEarlyHit;
 
       console.log(
