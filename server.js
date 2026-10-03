@@ -534,11 +534,11 @@ app.post("/api/send", ensureDbConnected, sendLimiter, recipientLimiter, async (r
 
     try {
       // ── Mail Header Notları ──
-      // replyTo: Kaldırıldı — noreply@hadibarisalim.com adresi gerçek değil ve Gmail'den
-      //   farklı bir domain ile Reply-To göndermek spam filtrelerini tetikliyor (domain uyumsuzluğu).
-      // messageId: Kaldırıldı — Nodemailer RFC 5322 uyumlu Message-ID otomatik oluşturuyor.
-      //   Manuel override, gönderen domain ile uyumsuzluk yaratarak spam skorunu artırıyordu.
-      // List-Unsubscribe: Gmail ve Yahoo 2024'te bulk sender'lar için zorunlu kıldı.
+      // List-Unsubscribe KASITLI OLARAK KALDIRILDI:
+      //   Bu header Gmail'in Promotions/Tanıtım sınıflandırıcısı için güçlü bir bulk-mail sinyalidir.
+      //   Unsubscribe işlevi footer'daki metin linki üzerinden korunuyor.
+      // Precedence: personal → Gmail'e "bu bireysel kişisel mail" sinyali verir.
+      // X-Entity-Ref-ID: Kaldırıldı — gereksiz header, spam skoru riskine yol açabilir.
       await transporter.sendMail({
         from: `"${fromName}" <${fromEmail}>`,
         to: recipientEmail,
@@ -546,11 +546,7 @@ app.post("/api/send", ensureDbConnected, sendLimiter, recipientLimiter, async (r
         text: body,
         html: htmlBody,
         headers: {
-          "X-Entity-Ref-ID": trackingId,
-          ...(unsubscribeLink && {
-            "List-Unsubscribe": `<${unsubscribeLink}>`,
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          }),
+          "Precedence": "personal",
         }
       });
     } catch (mailErr) {
@@ -664,69 +660,62 @@ app.get("/api/unsubscribe", ensureDbConnected, async (req, res) => {
 });
 
 /* ───────── HTML Email Builder ───────── */
-// unsubscribeLink artık dışarıdan parametre olarak alınıyor —
-// /api/send endpoint'inde hem header'a hem HTML'e aynı link kullanılıyor.
-// siteUrl: Canonical site adresi (footer ve header linkleri için).
-//   Vercel'de serverUrl ile aynı; custom domain varsa SITE_URL env var'ından gelir.
+// Promotions'a düşmeyi önlemek için tasarım bilinçli olarak sadeleştirildi:
+// - Branded header, gradient, logo, renkli CTA butonlar kaldırıldı
+// - Düz kağıt üstünde mektup görünümü — Gmail bunu kişisel mail olarak tanır
+// - List-Unsubscribe header'ı kaldırıldı (bulk sender işareti)
+// - Tek link: unsubscribe (footer'da küçük, pasif)
 function buildHtmlEmail(subject, textBody, isAnonymous, spotifyLink, trackingId, serverUrl, siteUrl, recipientEmail, unsubscribeLink) {
   const paragraphs = textBody
     .split("\n\n")
     .map((p) => escapeHtml(p).replace(/\n/g, "<br>"))
-    .map((p) => `<p style="margin:0 0 16px;line-height:1.7;color:#2B211B;">${p}</p>`)
+    .map((p) => `<p style="margin:0 0 20px;line-height:1.8;color:#1a1a1a;font-size:16px;">${p}</p>`)
     .join("");
 
+  // Spotify: Tracked redirect yerine doğrudan link — tracking redirect spam sinyali verir
   const safeSpotifyLink = spotifyLink ? escapeHtml(spotifyLink) : "";
-  const trackedSpotifyLink = safeSpotifyLink ? `${serverUrl}/api/track/${trackingId}/click?url=${encodeURIComponent(safeSpotifyLink)}` : "";
-  
   const spotifyHtml = safeSpotifyLink
-    ? `<div style="margin: 32px 0; text-align: center;">
-         <a href="${trackedSpotifyLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: #C9A15B; color: #1E1520; text-decoration: none; padding: 12px 24px; border-radius: 999px; font-weight: bold; font-family: -apple-system, sans-serif; font-size: 14px;">
-           🎵 Bu mektuba eklenen şarkıyı dinle
-         </a>
-       </div>`
+    ? `<p style="margin:24px 0;color:#555;font-size:14px;">🎵 <a href="${safeSpotifyLink}" style="color:#555;">${safeSpotifyLink}</a></p>`
     : "";
 
-  const footerText = isAnonymous 
-    ? "Bu mesaj bir kullanıcımız tarafından size anonim olarak iletilmiştir." 
-    : "Bu mesaj bir kullanıcımız tarafından size iletilmiştir.";
+  // Unsubscribe: Sadece footer'da küçük metin (header kaldırıldı)
+  const unsubscribeLine = unsubscribeLink
+    ? `<br><span style="font-size:11px;color:#aaa;">Bu mektubu bir daha almak istemiyorsanız <a href="${unsubscribeLink}" style="color:#aaa;">buraya tıklayın</a>.</span>`
+    : "";
 
-  // unsubscribeLink parametreden alınıyor — /api/send'de hesaplanıyor ve List-Unsubscribe header'ıyla senkronize
-  const footer = `
-    <p style="margin:24px 0 8px;font-size:13px;color:#8A7A63;font-style:italic;">${footerText}</p>
-    <p style="margin:0 0 16px;font-size:12px;color:#8A7A63;">
-      Siz de birine içindekileri yazmak isterseniz ziyaret edin: <br>
-      <a href="${siteUrl}" style="color:#C9A15B;text-decoration:none;font-weight:bold;">${siteUrl.replace(/^https?:\/\//, '')}</a>
-    </p>
-    <p style="margin:0 0 8px;font-size:11px;color:#8A7A63;opacity:0.8;">
-      Eğer bu mesajı yanlışlıkla aldığınızı düşünüyorsanız veya bir daha e-posta almak istemiyorsanız, <a href="${unsubscribeLink}" style="color:#C9A15B;text-decoration:underline;">buraya tıklayarak engelleyebilirsiniz</a>.
-    </p>`;
+  const platformNote = isAnonymous
+    ? "Bu mesaj hadibarisalim.com üzerinden anonim olarak gönderildi."
+    : "Bu mesaj hadibarisalim.com üzerinden gönderildi.";
 
-  const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" border="0" style="display:block; border:none; outline:none; text-decoration:none;" alt="" />`;
+  // Tracking pixel: Görünmez, tek piksel — boyutu ve stili sade tutuldu
+  const trackingPixel = `<img src="${serverUrl}/api/track/${trackingId}/pixel.gif" width="1" height="1" alt="" style="display:none;" />`;
 
-  return `
-<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="tr">
-<head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#1E1520;font-family:'Georgia',serif;">
-  <div style="max-width:580px;margin:40px auto;background:#F6EEE1;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
-    <!-- Header -->
-    <div style="background:linear-gradient(135deg,#1E1520,#2A1E2C);padding:32px 40px;text-align:center;">
-      <h1 style="margin:0;font-family:'Georgia',serif;font-size:24px;font-weight:normal;font-style:italic;">
-        <a href="${siteUrl}" style="color:#E7C685;text-decoration:none;">Hadi <em>Barış</em><span style="color:#C9A15B;">alım</span></a>
-      </h1>
-      <div style="width:80px;height:2px;background:linear-gradient(90deg,transparent,#C9A15B,transparent);margin:16px auto 0;"></div>
-    </div>
-    <!-- Body -->
-    <div style="padding:40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:16px;">
-      ${paragraphs}
-      ${spotifyHtml}
-    </div>
-    <!-- Footer -->
-    <div style="padding:0 40px 32px;text-align:center;">
-      <div style="height:1px;background:linear-gradient(90deg,transparent,#D9C8AA,transparent);margin-bottom:20px;"></div>
-      ${footer}
-    </div>
-  </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#f9f6f1;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f9f6f1;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:4px;border:1px solid #e8e0d5;">
+          <!-- Mektup gövdesi -->
+          <tr>
+            <td style="padding:40px 48px 32px;font-family:Georgia,'Times New Roman',serif;">
+              ${paragraphs}
+              ${spotifyHtml}
+              <hr style="border:none;border-top:1px solid #e8e0d5;margin:32px 0 24px;">
+              <p style="margin:0;font-size:12px;color:#999;font-family:Arial,sans-serif;line-height:1.6;">
+                ${platformNote}${unsubscribeLine}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
   ${trackingPixel}
 </body>
 </html>`;
